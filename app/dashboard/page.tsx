@@ -188,16 +188,11 @@ export default function DashboardPage() {
     return s === "Paid";
   }).length;
 
-  const cards: StatCard[] = [
-    { label: "Grand Total Due",      value: fmt(totalDue),       sub: `${pctPaid.toFixed(0)}% paid`,      accent: NAVY },
-    { label: "Monthly Expenses",     value: fmt(mDue),           sub: `${monthly.length} items`,          accent: "#1e40af" },
-    { label: "Annual Expenses",      value: fmt(aDue),           sub: `${annual.length} items`,           accent: "#1a5c8a" },
-    { label: "Total Paid",           value: fmt(totalPaid),      sub: `${paidCount} items paid`,          accent: "#16a34a" },
-    { label: "Remaining Balance",    value: fmt(totalRem),       sub: `Monthly: ${fmt(mRem)}`,            accent: "#dc2626" },
-    { label: "Past Due",             value: String(pastDueCount),sub: `items need attention`,             accent: "#b91c1c" },
-    { label: "Income Expected",      value: fmt(iExp),           sub: `${income.length} sources`,         accent: "#0f766e" },
-    { label: "Income Received",      value: fmt(iRec),           sub: `of ${fmt(iExp)} expected`,         accent: "#16a34a" },
-    { label: "Net Balance",          value: fmt(netBalance),     sub: netBalance >= 0 ? "surplus" : "deficit", accent: netBalance >= 0 ? "#16a34a" : "#dc2626" },
+  const monthlyCards: StatCard[] = [
+    { label: "Monthly Due",      value: fmt(mDue),            sub: `${monthly.length} items`,     accent: NAVY },
+    { label: "Paid",             value: fmt(mPaid),           sub: `${paidCount} paid`,           accent: "#16a34a" },
+    { label: "Remaining",        value: fmt(mRem),            sub: `of ${fmt(mDue)}`,             accent: "#dc2626" },
+    { label: "Past Due",         value: String(pastDueCount), sub: `need attention`,              accent: "#b91c1c" },
   ];
 
   return (
@@ -250,7 +245,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="max-w-screen-2xl mx-auto px-6 py-8">
+      <div className="max-w-screen-2xl mx-auto px-6 py-4">
 
         {genMsg && (
           <div className="mb-6 px-4 py-3 rounded-lg text-sm font-medium"
@@ -261,29 +256,24 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Summary Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 mb-10">
-          {cards.map(c => (
-            <div key={c.label} className="rounded-xl p-4 shadow-sm"
+        {/* ── MONTHLY SUMMARY CARDS ────────────────────────────────────────── */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+          {monthlyCards.map(c => (
+            <div key={c.label} className="rounded-lg p-3 shadow-sm"
               style={{ background: "#fff", border: `1px solid #e2e8f0`, borderTop: `3px solid ${c.accent}` }}>
-              <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "#94a3b8" }}>{c.label}</p>
-              <p className="text-2xl font-bold tabular-nums" style={{ color: c.accent }}>{c.value}</p>
-              {c.sub && <p className="text-xs mt-1.5" style={{ color: "#94a3b8" }}>{c.sub}</p>}
+              <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: "#94a3b8" }}>{c.label}</p>
+              <p className="text-xl font-bold tabular-nums" style={{ color: c.accent }}>{c.value}</p>
+              {c.sub && <p className="text-xs mt-1" style={{ color: "#94a3b8" }}>{c.sub}</p>}
             </div>
           ))}
         </div>
 
         {/* ── MONTHLY EXPENSES ─────────────────────────────────────────────── */}
-        <div className="mb-10">
-          <div className="flex items-center justify-between mb-4">
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-3">
-              <div className="w-1 h-6 rounded-full" style={{ background: NAVY }} />
-              <div>
-                <h2 className="text-base font-bold" style={{ color: NAVY }}>Monthly Expenses</h2>
-                <p className="text-xs" style={{ color: "#94a3b8" }}>
-                  {monthly.length} items · Due: {fmt(mDue)} · Paid: {fmt(mPaid)} · Remaining: {fmt(mRem)}
-                </p>
-              </div>
+              <div className="w-1 h-5 rounded-full" style={{ background: NAVY }} />
+              <h2 className="text-base font-bold" style={{ color: NAVY }}>Monthly Expenses</h2>
             </div>
             <button onClick={() => setShowAdd(!showAdd)}
               className="px-3 py-1.5 text-xs font-semibold rounded-lg transition-all"
@@ -344,23 +334,26 @@ export default function DashboardPage() {
         </div>
 
         {/* ── ANNUAL EXPENSES ──────────────────────────────────────────────── */}
-        <div>
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-1 h-6 rounded-full" style={{ background: "#1a5c8a" }} />
-            <div>
-              <h2 className="text-base font-bold flex items-center gap-2" style={{ color: "#1a3a5c" }}>
-                Annual Expenses
-                <span className="text-xs font-normal px-2 py-0.5 rounded-full"
-                  style={{ background: "#dbeafe", color: "#1e40af", border: "1px solid #bfdbfe" }}>
-                  auto-added on due month
-                </span>
-              </h2>
-              <p className="text-xs" style={{ color: "#94a3b8" }}>
-                {annual.length} items · Due: {fmt(aDue)} · Paid: {fmt(aPaid)} · Remaining: {fmt(aRem)}
-              </p>
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-3">
+              <div className="w-1 h-5 rounded-full" style={{ background: "#1a5c8a" }} />
+              <h2 className="text-base font-bold" style={{ color: "#1a3a5c" }}>Annual Expenses</h2>
             </div>
           </div>
-
+          <div className="grid grid-cols-3 gap-2 mb-3">
+            {[
+              { label: "Due",       value: fmt(aDue),  accent: "#1a5c8a" },
+              { label: "Paid",      value: fmt(aPaid), accent: "#16a34a" },
+              { label: "Remaining", value: fmt(aRem),  accent: "#dc2626" },
+            ].map(s => (
+              <div key={s.label} className="rounded-lg px-3 py-2"
+                style={{ background: "#fff", border: "1px solid #e2e8f0", borderLeft: `3px solid ${s.accent}` }}>
+                <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#94a3b8" }}>{s.label}</p>
+                <p className="text-base font-bold tabular-nums mt-0.5" style={{ color: s.accent }}>{s.value}</p>
+              </div>
+            ))}
+          </div>
           {loading ? null : (
             <ExpenseTable expenses={annual} onUpdate={handleUpdate} onDelete={handleDelete}
               onMoveUp={id => handleMove(annual, id, "up")} onMoveDown={id => handleMove(annual, id, "down")}
@@ -369,23 +362,26 @@ export default function DashboardPage() {
         </div>
 
         {/* ── LIENS & COLLECTIONS ──────────────────────────────────────────── */}
-        <div className="mt-10">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-1 h-6 rounded-full" style={{ background: "#7f1d1d" }} />
-            <div>
-              <h2 className="text-base font-bold flex items-center gap-2" style={{ color: "#7f1d1d" }}>
-                Liens, Collections &amp; Defaulted Debt
-                <span className="text-xs font-normal px-2 py-0.5 rounded-full"
-                  style={{ background: "#fee2e2", color: "#b91c1c", border: "1px solid #fecaca" }}>
-                  not auto-copied
-                </span>
-              </h2>
-              <p className="text-xs" style={{ color: "#94a3b8" }}>
-                {liens.length} items · Total: {fmt(lDue)} · Paid: {fmt(lPaid)} · Remaining: {fmt(lRem)}
-              </p>
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-3">
+              <div className="w-1 h-5 rounded-full" style={{ background: "#7f1d1d" }} />
+              <h2 className="text-base font-bold" style={{ color: "#7f1d1d" }}>Liens, Collections &amp; Defaulted Debt</h2>
             </div>
           </div>
-
+          <div className="grid grid-cols-3 gap-2 mb-3">
+            {[
+              { label: "Total",     value: fmt(lDue),  accent: "#7f1d1d" },
+              { label: "Paid",      value: fmt(lPaid), accent: "#16a34a" },
+              { label: "Remaining", value: fmt(lRem),  accent: "#dc2626" },
+            ].map(s => (
+              <div key={s.label} className="rounded-lg px-3 py-2"
+                style={{ background: "#fff", border: "1px solid #e2e8f0", borderLeft: `3px solid ${s.accent}` }}>
+                <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#94a3b8" }}>{s.label}</p>
+                <p className="text-base font-bold tabular-nums mt-0.5" style={{ color: s.accent }}>{s.value}</p>
+              </div>
+            ))}
+          </div>
           {loading ? null : (
             <ExpenseTable expenses={liens} onUpdate={handleUpdate} onDelete={handleDelete}
               onMoveUp={id => handleMove(liens, id, "up")} onMoveDown={id => handleMove(liens, id, "down")}
@@ -394,7 +390,7 @@ export default function DashboardPage() {
         </div>
 
         {/* ── INCOME ───────────────────────────────────────────────────────── */}
-        <div className="mt-10">
+        <div className="mb-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               <div className="w-1 h-6 rounded-full" style={{ background: "#0f766e" }} />
