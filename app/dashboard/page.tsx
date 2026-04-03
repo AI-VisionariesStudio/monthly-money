@@ -37,12 +37,18 @@ export default function DashboardPage() {
   const [loading, setLoading]   = useState(true);
   const [generating, setGenerating] = useState(false);
   const [genMsg, setGenMsg]     = useState<string | null>(null);
-  const [showAdd, setShowAdd]   = useState(false);
+  const [showAdd, setShowAdd]         = useState(false);
+  const [showAddIncome, setShowAddIncome] = useState(false);
   const [addForm, setAddForm]   = useState({
     description: "", amount: "", category: "",
     dueDate: `${getCurrentMonthKey()}-01`, isRecurring: false, frequency: "monthly",
   });
-  const [addError, setAddError] = useState<string | null>(null);
+  const [addIncomeForm, setAddIncomeForm] = useState({
+    description: "", amount: "", category: "Income",
+    dueDate: `${getCurrentMonthKey()}-01`,
+  });
+  const [addError, setAddError]       = useState<string | null>(null);
+  const [addIncomeError, setAddIncomeError] = useState<string | null>(null);
 
   const fetchExpenses = useCallback(async () => {
     setLoading(true);
@@ -59,6 +65,27 @@ export default function DashboardPage() {
     await fetch(`/api/expenses/${id}`, {
       method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data),
     });
+    await fetchExpenses();
+  }
+
+  async function handleMove(section: Expense[], id: string, dir: "up" | "down") {
+    const idx = section.findIndex(e => e.id === id);
+    const swapIdx = dir === "up" ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= section.length) return;
+    const allZero = section.every(e => e.sortOrder === 0);
+    if (allZero) {
+      await Promise.all(section.map((e, i) =>
+        fetch(`/api/expenses/${e.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sortOrder: i * 10 }) })
+      ));
+    }
+    const a = section[idx];
+    const b = section[swapIdx];
+    const aOrder = allZero ? idx * 10 : a.sortOrder;
+    const bOrder = allZero ? swapIdx * 10 : b.sortOrder;
+    await Promise.all([
+      fetch(`/api/expenses/${a.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sortOrder: bOrder }) }),
+      fetch(`/api/expenses/${b.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sortOrder: aOrder }) }),
+    ]);
     await fetchExpenses();
   }
 
@@ -102,10 +129,29 @@ export default function DashboardPage() {
     }
   }
 
+  async function handleAddIncome(e: React.FormEvent) {
+    e.preventDefault(); setAddIncomeError(null);
+    if (!addIncomeForm.description || !addIncomeForm.amount || !addIncomeForm.dueDate) {
+      setAddIncomeError("All fields required."); return;
+    }
+    const res = await fetch("/api/expenses", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...addIncomeForm, amount: parseFloat(addIncomeForm.amount), frequency: "income", monthKey }),
+    });
+    if (res.ok) {
+      setShowAddIncome(false);
+      setAddIncomeForm({ description: "", amount: "", category: "Income", dueDate: `${monthKey}-01` });
+      fetchExpenses();
+    } else {
+      const d = await res.json(); setAddIncomeError(d.error || "Failed.");
+    }
+  }
+
   // ── Split expenses ────────────────────────────────────────────────────────
   const monthly = expenses.filter(e => e.frequency === "monthly");
   const annual  = expenses.filter(e => e.frequency === "annual");
   const liens   = expenses.filter(e => e.frequency === "lien");
+  const income  = expenses.filter(e => e.frequency === "income");
 
   // ── Stats ─────────────────────────────────────────────────────────────────
   const mDue  = monthly.reduce((s, e) => s + e.amount, 0);
@@ -117,11 +163,14 @@ export default function DashboardPage() {
   const lDue  = liens.reduce((s, e) => s + e.amount, 0);
   const lPaid = liens.reduce((s, e) => s + e.amountPaid, 0);
   const lRem  = liens.reduce((s, e) => s + Math.max(0, e.amount - e.amountPaid), 0);
+  const iExp  = income.reduce((s, e) => s + e.amount, 0);
+  const iRec  = income.reduce((s, e) => s + e.amountPaid, 0);
 
   const totalDue  = mDue + aDue + lDue;
   const totalPaid = mPaid + aPaid + lPaid;
   const totalRem  = mRem + aRem + lRem;
   const pctPaid   = totalDue > 0 ? (totalPaid / totalDue) * 100 : 0;
+  const netBalance = iRec - totalRem;
 
   const pastDueCount = expenses.filter(e => {
     const s = computeStatus({ status: e.status, paymentDate: e.paymentDate, dueDate: e.dueDate, amountPaid: e.amountPaid, amount: e.amount });
@@ -133,12 +182,15 @@ export default function DashboardPage() {
   }).length;
 
   const cards: StatCard[] = [
-    { label: "Grand Total Due",      value: fmt(totalDue),  sub: `${pctPaid.toFixed(0)}% paid`,           accent: NAVY },
-    { label: "Monthly Expenses",     value: fmt(mDue),      sub: `${monthly.length} items`,               accent: "#1e40af" },
-    { label: "Annual Expenses",      value: fmt(aDue),      sub: `${annual.length} items`,                accent: "#1a5c8a" },
-    { label: "Total Paid",           value: fmt(totalPaid), sub: `${paidCount} items paid`,               accent: "#16a34a" },
-    { label: "Remaining Balance",    value: fmt(totalRem),  sub: `Monthly: ${fmt(mRem)}`,                 accent: "#dc2626" },
-    { label: "Past Due",             value: String(pastDueCount), sub: `items need attention`,            accent: "#b91c1c" },
+    { label: "Grand Total Due",      value: fmt(totalDue),       sub: `${pctPaid.toFixed(0)}% paid`,      accent: NAVY },
+    { label: "Monthly Expenses",     value: fmt(mDue),           sub: `${monthly.length} items`,          accent: "#1e40af" },
+    { label: "Annual Expenses",      value: fmt(aDue),           sub: `${annual.length} items`,           accent: "#1a5c8a" },
+    { label: "Total Paid",           value: fmt(totalPaid),      sub: `${paidCount} items paid`,          accent: "#16a34a" },
+    { label: "Remaining Balance",    value: fmt(totalRem),       sub: `Monthly: ${fmt(mRem)}`,            accent: "#dc2626" },
+    { label: "Past Due",             value: String(pastDueCount),sub: `items need attention`,             accent: "#b91c1c" },
+    { label: "Income Expected",      value: fmt(iExp),           sub: `${income.length} sources`,         accent: "#0f766e" },
+    { label: "Income Received",      value: fmt(iRec),           sub: `of ${fmt(iExp)} expected`,         accent: "#16a34a" },
+    { label: "Net Balance",          value: fmt(netBalance),     sub: netBalance >= 0 ? "surplus" : "deficit", accent: netBalance >= 0 ? "#16a34a" : "#dc2626" },
   ];
 
   return (
@@ -264,7 +316,9 @@ export default function DashboardPage() {
           {loading ? (
             <div className="py-16 text-center" style={{ color: "#94a3b8" }}>Loading…</div>
           ) : (
-            <ExpenseTable expenses={monthly} onUpdate={handleUpdate} onDelete={handleDelete} headerColor={NAVY} />
+            <ExpenseTable expenses={monthly} onUpdate={handleUpdate} onDelete={handleDelete}
+              onMoveUp={id => handleMove(monthly, id, "up")} onMoveDown={id => handleMove(monthly, id, "down")}
+              headerColor={NAVY} />
           )}
         </div>
 
@@ -287,7 +341,9 @@ export default function DashboardPage() {
           </div>
 
           {loading ? null : (
-            <ExpenseTable expenses={annual} onUpdate={handleUpdate} onDelete={handleDelete} headerColor={ANNUAL_HDR} />
+            <ExpenseTable expenses={annual} onUpdate={handleUpdate} onDelete={handleDelete}
+              onMoveUp={id => handleMove(annual, id, "up")} onMoveDown={id => handleMove(annual, id, "down")}
+              headerColor={ANNUAL_HDR} />
           )}
         </div>
 
@@ -310,7 +366,62 @@ export default function DashboardPage() {
           </div>
 
           {loading ? null : (
-            <ExpenseTable expenses={liens} onUpdate={handleUpdate} onDelete={handleDelete} headerColor="#7f1d1d" />
+            <ExpenseTable expenses={liens} onUpdate={handleUpdate} onDelete={handleDelete}
+              onMoveUp={id => handleMove(liens, id, "up")} onMoveDown={id => handleMove(liens, id, "down")}
+              headerColor="#7f1d1d" />
+          )}
+        </div>
+
+        {/* ── INCOME ───────────────────────────────────────────────────────── */}
+        <div className="mt-10">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-1 h-6 rounded-full" style={{ background: "#0f766e" }} />
+              <div>
+                <h2 className="text-base font-bold" style={{ color: "#0f766e" }}>Income</h2>
+                <p className="text-xs" style={{ color: "#94a3b8" }}>
+                  {income.length} sources · Expected: {fmt(iExp)} · Received: {fmt(iRec)} · Net Balance: <span style={{ color: netBalance >= 0 ? "#16a34a" : "#dc2626", fontWeight: 600 }}>{fmt(netBalance)}</span>
+                </p>
+              </div>
+            </div>
+            <button onClick={() => setShowAddIncome(!showAddIncome)}
+              className="px-3 py-1.5 text-xs font-semibold rounded-lg transition-all"
+              style={{ background: showAddIncome ? "#fee2e2" : "#fff", color: showAddIncome ? "#b91c1c" : "#0f766e", border: `1px solid ${showAddIncome ? "#fecaca" : "#99f6e4"}` }}>
+              {showAddIncome ? "Cancel" : "+ Add Income"}
+            </button>
+          </div>
+
+          {showAddIncome && (
+            <form onSubmit={handleAddIncome}
+              className="mb-5 rounded-xl p-5 grid grid-cols-2 md:grid-cols-4 gap-4"
+              style={{ background: "#fff", border: "1px solid #99f6e4", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+              {[
+                { label: "Description *", key: "description", type: "text",   placeholder: "e.g. Paycheck" },
+                { label: "Expected Amount *", key: "amount",  type: "number", placeholder: "0.00" },
+                { label: "Category",      key: "category",    type: "text",   placeholder: "Income" },
+                { label: "Date *",        key: "dueDate",     type: "date",   placeholder: "" },
+              ].map(f => (
+                <div key={f.key}>
+                  <label className="block text-xs font-medium mb-1" style={{ color: "#64748b" }}>{f.label}</label>
+                  <input type={f.type} value={(addIncomeForm as any)[f.key]} placeholder={f.placeholder}
+                    onChange={e => setAddIncomeForm({ ...addIncomeForm, [f.key]: e.target.value })}
+                    className="w-full px-3 py-2 text-sm rounded-lg focus:outline-none"
+                    style={{ background: "#f8fafc", border: "1px solid #e2e8f0", color: "#0f172a" }} />
+                </div>
+              ))}
+              <div className="col-span-2 md:col-span-4 flex items-center gap-3">
+                {addIncomeError && <p className="text-xs" style={{ color: "#dc2626" }}>{addIncomeError}</p>}
+                <button type="submit"
+                  className="px-5 py-2 text-sm font-semibold rounded-lg"
+                  style={{ background: "#0f766e", color: "#fff" }}>Add Income</button>
+              </div>
+            </form>
+          )}
+
+          {loading ? null : (
+            <ExpenseTable expenses={income} onUpdate={handleUpdate} onDelete={handleDelete}
+              onMoveUp={id => handleMove(income, id, "up")} onMoveDown={id => handleMove(income, id, "down")}
+              headerColor="#0f766e" />
           )}
         </div>
 

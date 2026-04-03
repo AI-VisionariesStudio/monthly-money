@@ -25,6 +25,7 @@ export async function PUT(
     if ("remainingName" in body) updateData.remainingName = body.remainingName;
     if ("remainingType" in body) updateData.remainingType = body.remainingType;
     if ("frequency" in body) updateData.frequency = body.frequency;
+    if ("sortOrder" in body) updateData.sortOrder = body.sortOrder;
 
     const expense = await prisma.expense.update({
       where: { id },

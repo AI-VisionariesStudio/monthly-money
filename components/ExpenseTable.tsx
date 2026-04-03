@@ -20,12 +20,15 @@ export interface Expense {
   remainingName: string | null;
   remainingType: string | null;
   monthKey: string;
+  sortOrder: number;
 }
 
 interface ExpenseTableProps {
   expenses: Expense[];
   onUpdate: (id: string, data: Partial<Expense>) => Promise<void>;
   onDelete?: (id: string) => Promise<void>;
+  onMoveUp?: (id: string) => void;
+  onMoveDown?: (id: string) => void;
   headerColor?: string;
 }
 
@@ -38,13 +41,17 @@ function fmtDate(s: string) {
 function toInputDate(s: string) {
   return new Date(s).toISOString().split("T")[0];
 }
-function getRowClass(status: string, idx: number) {
+function getRowClass(status: string) {
   switch (status) {
     case "Past Due":
     case "Overdue":        return "bg-red-50";
-    case "Paid":           return idx % 2 === 0 ? "bg-emerald-50/60" : "bg-emerald-50";
-    case "Paid as Agreed": return "bg-amber-50/50";
-    default:               return idx % 2 === 0 ? "bg-white" : "bg-slate-50/60";
+    case "Paid":           return "bg-emerald-50";
+    case "Paid as Agreed": return "bg-amber-50";
+    case "Due Today":      return "bg-orange-50";
+    case "Partial":        return "bg-teal-50";
+    case "Forwarded":      return "bg-violet-50";
+    case "Cancelled":      return "bg-slate-100";
+    default:               return "bg-white";
   }
 }
 function getCardBorder(status: string) {
@@ -171,6 +178,7 @@ function EditModal({ expense, onSave, onClose }: {
                 <option value="monthly">Monthly</option>
                 <option value="annual">Annual</option>
                 <option value="lien">Liens &amp; Collections</option>
+                <option value="income">Income</option>
               </select>
             </div>
           </div>
@@ -294,7 +302,7 @@ function MobileCard({ expense, onEdit, onDelete, onUpdate }: {
 }
 
 // ─── Main Table ───────────────────────────────────────────────────────────────
-export function ExpenseTable({ expenses, onUpdate, onDelete, headerColor = "#0d2b4e" }: ExpenseTableProps) {
+export function ExpenseTable({ expenses, onUpdate, onDelete, onMoveUp, onMoveDown, headerColor = "#0d2b4e" }: ExpenseTableProps) {
   const [editingRow, setEditingRow]     = useState<Expense | null>(null);
   const [inlineId, setInlineId]         = useState<string | null>(null);
   const [inlineField, setInlineField]   = useState<string | null>(null);
@@ -398,12 +406,12 @@ export function ExpenseTable({ expenses, onUpdate, onDelete, headerColor = "#0d2
               {filtered.length === 0 && (
                 <tr><td colSpan={9} className="px-4 py-10 text-center text-slate-400 bg-white">No expenses match this filter.</td></tr>
               )}
-              {filtered.map((expense, idx) => {
+              {filtered.map((expense) => {
                 const status    = getStatus(expense);
                 const remaining = Math.max(0, expense.amount - expense.amountPaid);
                 const isInline  = inlineId === expense.id;
                 return (
-                  <tr key={expense.id} className={`${getRowClass(status, idx)} hover:brightness-95 transition-all`}
+                  <tr key={expense.id} className={`${getRowClass(status)} hover:brightness-95 transition-all`}
                     style={{ borderBottom: "1px solid #e2e8f0" }}>
 
                     <td className="px-4 py-2.5 max-w-[240px]" style={COL}>
@@ -486,7 +494,17 @@ export function ExpenseTable({ expenses, onUpdate, onDelete, headerColor = "#0d2
                     </td>
 
                     <td className="px-3 py-2.5 whitespace-nowrap">
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1">
+                        {onMoveUp && (
+                          <button onClick={() => onMoveUp(expense.id)} title="Move up"
+                            className="w-6 h-6 flex items-center justify-center rounded text-xs font-bold"
+                            style={{ background: "#f1f5f9", color: "#64748b", border: "1px solid #e2e8f0" }}>↑</button>
+                        )}
+                        {onMoveDown && (
+                          <button onClick={() => onMoveDown(expense.id)} title="Move down"
+                            className="w-6 h-6 flex items-center justify-center rounded text-xs font-bold"
+                            style={{ background: "#f1f5f9", color: "#64748b", border: "1px solid #e2e8f0" }}>↓</button>
+                        )}
                         <button onClick={() => setEditingRow(expense)}
                           className="px-2.5 py-1 text-xs font-semibold rounded-md"
                           style={{ background: "#eff6ff", color: "#1d4ed8", border: "1px solid #bfdbfe" }}>Edit</button>

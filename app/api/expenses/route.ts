@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
   try {
     const expenses = await prisma.expense.findMany({
       where,
-      orderBy: [{ dueDate: "asc" }, { description: "asc" }],
+      orderBy: [{ sortOrder: "asc" }, { dueDate: "asc" }, { description: "asc" }],
     });
     return NextResponse.json(expenses);
   } catch (error) {
