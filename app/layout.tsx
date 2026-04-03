@@ -24,7 +24,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
                 $
               </div>
               <span className="text-lg font-bold tracking-tight" style={{ color: "#fff", letterSpacing: "-0.02em" }}>
-                Monthly Money
+                19028 Stone Brook
               </span>
             </Link>
             <nav className="flex items-center gap-6 text-sm">

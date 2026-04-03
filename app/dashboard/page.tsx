@@ -175,7 +175,6 @@ export default function DashboardPage() {
   const totalDue  = mDue + aDue + lDue;
   const totalPaid = mPaid + aPaid + lPaid;
   const totalRem  = mRem + aRem + lRem;
-  const pctPaid   = totalDue > 0 ? (totalPaid / totalDue) * 100 : 0;
   const netBalance = iRec - totalRem;
 
   const nonIncomeExpenses = expenses.filter(e => e.frequency !== "income");
@@ -203,7 +202,7 @@ export default function DashboardPage() {
         <div className="max-w-screen-2xl mx-auto px-6 py-6">
           <div className="flex items-start justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-white tracking-tight">Budget Dashboard</h1>
+              <h1 className="text-2xl font-bold text-white tracking-tight">Estate Management</h1>
               <p className="text-sm mt-0.5" style={{ color: "rgba(255,255,255,0.55)" }}>{fmtMonth(monthKey)}</p>
             </div>
             <div className="flex items-center gap-3">
@@ -220,28 +219,26 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Progress bar */}
+          {/* Progress bar — monthly expenses only */}
           <div className="mt-4 h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.15)" }}>
             <div className="h-full rounded-full transition-all duration-700"
-              style={{ width: `${pctPaid}%`, background: "linear-gradient(90deg, #34d399, #10b981)" }} />
+              style={{ width: `${mDue > 0 ? (mPaid / mDue) * 100 : 0}%`, background: "linear-gradient(90deg, #34d399, #10b981)" }} />
           </div>
           <p className="text-xs mt-1.5" style={{ color: "rgba(255,255,255,0.45)" }}>
-            {fmt(totalPaid)} paid of {fmt(totalDue)} total
+            {fmt(mPaid)} paid of {fmt(mDue)} monthly expenses
           </p>
         </div>
       </div>
 
-      {/* ── Sticky balance bar ───────────────────────────────────────────── */}
+      {/* ── Sticky balance bar — expenses only ──────────────────────────── */}
       <div className="sticky top-0 z-20 border-b" style={{ background: "#0a1f38", borderColor: "#163152" }}>
         <div className="max-w-screen-2xl mx-auto px-6 py-2 flex items-center gap-6 text-sm">
-          <span style={{ color: "rgba(255,255,255,0.5)" }}>Balance:</span>
-          <span style={{ color: "#86efac" }}>Income received <strong>{fmt(iRec)}</strong></span>
-          <span style={{ color: "rgba(255,255,255,0.3)" }}>−</span>
-          <span style={{ color: "#fca5a5" }}>Expenses remaining <strong>{fmt(totalRem)}</strong></span>
-          <span style={{ color: "rgba(255,255,255,0.3)" }}>=</span>
-          <span className="font-bold text-base" style={{ color: netBalance >= 0 ? "#34d399" : "#f87171" }}>
-            {fmt(netBalance)}
-          </span>
+          <span style={{ color: "rgba(255,255,255,0.5)" }}>Expenses:</span>
+          <span style={{ color: "#c8d8ea" }}>Due <strong style={{ color: "#fff" }}>{fmt(totalDue)}</strong></span>
+          <span style={{ color: "rgba(255,255,255,0.25)" }}>·</span>
+          <span style={{ color: "#86efac" }}>Paid <strong>{fmt(totalPaid)}</strong></span>
+          <span style={{ color: "rgba(255,255,255,0.25)" }}>·</span>
+          <span style={{ color: "#fca5a5" }}>Remaining <strong>{fmt(totalRem)}</strong></span>
         </div>
       </div>
 
