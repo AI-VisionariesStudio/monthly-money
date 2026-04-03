@@ -33,6 +33,7 @@ export async function POST(request: NextRequest) {
       category,
       dueDate,
       isRecurring = false,
+      frequency = "monthly",
       status = null,
       paymentDate = null,
       paymentType = null,
@@ -63,6 +64,7 @@ export async function POST(request: NextRequest) {
         notes,
         remainingName,
         remainingType,
+        frequency,
         monthKey,
       },
     });
