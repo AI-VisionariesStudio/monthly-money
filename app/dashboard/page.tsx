@@ -44,7 +44,7 @@ export default function DashboardPage() {
     dueDate: `${getCurrentMonthKey()}-01`, isRecurring: false, frequency: "monthly",
   });
   const [addIncomeForm, setAddIncomeForm] = useState({
-    description: "", amount: "", category: "Income",
+    description: "", amount: "", amountPaid: "", category: "Income",
     dueDate: `${getCurrentMonthKey()}-01`,
   });
   const [addError, setAddError]       = useState<string | null>(null);
@@ -136,12 +136,18 @@ export default function DashboardPage() {
     }
     const res = await fetch("/api/expenses", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...addIncomeForm, amount: parseFloat(addIncomeForm.amount), frequency: "income", monthKey }),
+      body: JSON.stringify({
+        ...addIncomeForm,
+        amount: parseFloat(addIncomeForm.amount) || 0,
+        amountPaid: parseFloat(addIncomeForm.amountPaid) || 0,
+        frequency: "income",
+        monthKey,
+      }),
     });
     if (res.ok) {
       setShowAddIncome(false);
-      setAddIncomeForm({ description: "", amount: "", category: "Income", dueDate: `${monthKey}-01` });
-      fetchExpenses();
+      setAddIncomeForm({ description: "", amount: "", amountPaid: "", category: "Income", dueDate: `${monthKey}-01` });
+      await fetchExpenses();
     } else {
       const d = await res.json(); setAddIncomeError(d.error || "Failed.");
     }
@@ -172,11 +178,12 @@ export default function DashboardPage() {
   const pctPaid   = totalDue > 0 ? (totalPaid / totalDue) * 100 : 0;
   const netBalance = iRec - totalRem;
 
-  const pastDueCount = expenses.filter(e => {
+  const nonIncomeExpenses = expenses.filter(e => e.frequency !== "income");
+  const pastDueCount = nonIncomeExpenses.filter(e => {
     const s = computeStatus({ status: e.status, paymentDate: e.paymentDate, dueDate: e.dueDate, amountPaid: e.amountPaid, amount: e.amount });
     return s === "Past Due" || s === "Overdue";
   }).length;
-  const paidCount = expenses.filter(e => {
+  const paidCount = nonIncomeExpenses.filter(e => {
     const s = computeStatus({ status: e.status, paymentDate: e.paymentDate, dueDate: e.dueDate, amountPaid: e.amountPaid, amount: e.amount });
     return s === "Paid";
   }).length;
@@ -226,6 +233,20 @@ export default function DashboardPage() {
           <p className="text-xs mt-1.5" style={{ color: "rgba(255,255,255,0.45)" }}>
             {fmt(totalPaid)} paid of {fmt(totalDue)} total
           </p>
+        </div>
+      </div>
+
+      {/* ── Sticky balance bar ───────────────────────────────────────────── */}
+      <div className="sticky top-0 z-20 border-b" style={{ background: "#0a1f38", borderColor: "#163152" }}>
+        <div className="max-w-screen-2xl mx-auto px-6 py-2 flex items-center gap-6 text-sm">
+          <span style={{ color: "rgba(255,255,255,0.5)" }}>Balance:</span>
+          <span style={{ color: "#86efac" }}>Income received <strong>{fmt(iRec)}</strong></span>
+          <span style={{ color: "rgba(255,255,255,0.3)" }}>−</span>
+          <span style={{ color: "#fca5a5" }}>Expenses remaining <strong>{fmt(totalRem)}</strong></span>
+          <span style={{ color: "rgba(255,255,255,0.3)" }}>=</span>
+          <span className="font-bold text-base" style={{ color: netBalance >= 0 ? "#34d399" : "#f87171" }}>
+            {fmt(netBalance)}
+          </span>
         </div>
       </div>
 
@@ -393,13 +414,14 @@ export default function DashboardPage() {
 
           {showAddIncome && (
             <form onSubmit={handleAddIncome}
-              className="mb-5 rounded-xl p-5 grid grid-cols-2 md:grid-cols-4 gap-4"
+              className="mb-5 rounded-xl p-5 grid grid-cols-2 md:grid-cols-5 gap-4"
               style={{ background: "#fff", border: "1px solid #99f6e4", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
               {[
-                { label: "Description *", key: "description", type: "text",   placeholder: "e.g. Paycheck" },
-                { label: "Expected Amount *", key: "amount",  type: "number", placeholder: "0.00" },
-                { label: "Category",      key: "category",    type: "text",   placeholder: "Income" },
-                { label: "Date *",        key: "dueDate",     type: "date",   placeholder: "" },
+                { label: "Description *",    key: "description", type: "text",   placeholder: "e.g. Paycheck" },
+                { label: "Expected Amount *", key: "amount",     type: "number", placeholder: "0.00" },
+                { label: "Amount Received",  key: "amountPaid",  type: "number", placeholder: "0.00" },
+                { label: "Category",         key: "category",    type: "text",   placeholder: "Income" },
+                { label: "Date *",           key: "dueDate",     type: "date",   placeholder: "" },
               ].map(f => (
                 <div key={f.key}>
                   <label className="block text-xs font-medium mb-1" style={{ color: "#64748b" }}>{f.label}</label>
@@ -409,7 +431,7 @@ export default function DashboardPage() {
                     style={{ background: "#f8fafc", border: "1px solid #e2e8f0", color: "#0f172a" }} />
                 </div>
               ))}
-              <div className="col-span-2 md:col-span-4 flex items-center gap-3">
+              <div className="col-span-2 md:col-span-5 flex items-center gap-3">
                 {addIncomeError && <p className="text-xs" style={{ color: "#dc2626" }}>{addIncomeError}</p>}
                 <button type="submit"
                   className="px-5 py-2 text-sm font-semibold rounded-lg"
