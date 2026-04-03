@@ -1,0 +1,28 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Expense {
+  id             String    @id @default(cuid())
+  description    String
+  amount         Float
+  amountPaid     Float     @default(0)
+  category       String
+  dueDate        DateTime
+  isRecurring    Boolean   @default(false)
+  frequency      String    @default("monthly")
+  status         String?
+  paymentDate    DateTime?
+  paymentType    String?
+  notes          String?
+  remainingName  String?
+  remainingType  String?
+  monthKey       String
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
