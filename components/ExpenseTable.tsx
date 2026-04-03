@@ -335,6 +335,15 @@ export function ExpenseTable({ expenses, onUpdate, onDelete, onMoveUp, onMoveDow
     if (inlineField === "amountPaid") {
       const v = parseFloat(inlineValue.replace(/[^0-9.]/g, ""));
       if (!isNaN(v)) update = { amountPaid: v };
+    } else if (inlineField === "amount") {
+      const v = parseFloat(inlineValue.replace(/[^0-9.]/g, ""));
+      if (!isNaN(v)) update = { amount: v };
+    } else if (inlineField === "description") {
+      if (inlineValue.trim()) update = { description: inlineValue.trim() };
+    } else if (inlineField === "category") {
+      if (inlineValue.trim()) update = { category: inlineValue.trim() };
+    } else if (inlineField === "dueDate") {
+      if (inlineValue) update = { dueDate: inlineValue };
     } else if (inlineField === "status") {
       update = { status: inlineValue || null };
     } else if (inlineField === "notes") {
@@ -395,8 +404,8 @@ export function ExpenseTable({ expenses, onUpdate, onDelete, onMoveUp, onMoveDow
             <thead>
               <tr style={{ background: headerColor }}>
                 {["Expense", "Category", "Due Date", "Amount Due", "Amount Paid", "Remaining", "Status", "Notes", ""].map((h, i) => (
-                  <th key={i} className="px-4 py-3 text-xs font-semibold uppercase tracking-wider whitespace-nowrap"
-                    style={{ color: "#c8d8ea", borderRight: "1px solid rgba(255,255,255,0.08)", textAlign: i >= 3 && i <= 5 ? "right" : "left" }}>
+                  <th key={i} className="px-3 py-2.5"
+                    style={{ color: "rgba(200,216,234,0.9)", borderRight: "1px solid rgba(255,255,255,0.07)", textAlign: i >= 3 && i <= 5 ? "right" : "left", fontSize: 10, letterSpacing: "0.09em" }}>
                     {h}
                   </th>
                 ))}
@@ -411,32 +420,82 @@ export function ExpenseTable({ expenses, onUpdate, onDelete, onMoveUp, onMoveDow
                 const remaining = Math.max(0, expense.amount - expense.amountPaid);
                 const isInline  = inlineId === expense.id;
                 return (
-                  <tr key={expense.id} className={`${getRowClass(status)} hover:brightness-95 transition-all`}
-                    style={{ borderBottom: "1px solid #e2e8f0" }}>
+                  <tr key={expense.id} className={`${getRowClass(status)} transition-colors duration-100`}
+                    style={{ borderBottom: "1px solid #edf0f4" }}>
 
-                    <td className="px-4 py-2.5 max-w-[240px]" style={COL}>
-                      <div className="flex items-center gap-1.5">
-                        {expense.isRecurring && <span className="text-slate-300 text-xs">⟳</span>}
-                        <span className="font-medium text-slate-800 truncate">{expense.description}</span>
-                      </div>
+                    {/* Description — editable */}
+                    <td className="px-3 py-2 max-w-[220px] cursor-pointer group" style={COL}
+                      onClick={() => !isInline && startInline(expense.id, "description", expense.description)}
+                      title="Click to edit">
+                      {isInline && inlineField === "description" ? (
+                        <input ref={inputRef} type="text" value={inlineValue} autoFocus
+                          onChange={e => setInlineValue(e.target.value)}
+                          onBlur={() => commitInline(expense)}
+                          onKeyDown={e => { if (e.key === "Enter") commitInline(expense); if (e.key === "Escape") cancelInline(); }}
+                          className="w-full" style={{ fontSize: 13 }} />
+                      ) : (
+                        <div className="flex items-center gap-1.5">
+                          {expense.isRecurring && <span style={{ color: "#cbd5e1", fontSize: 11 }}>⟳</span>}
+                          <span className="font-medium truncate group-hover:text-blue-700 transition-colors" style={{ color: "#1e293b" }}>
+                            {saving === expense.id && inlineField === "description" ? "…" : expense.description}
+                          </span>
+                        </div>
+                      )}
                     </td>
 
-                    <td className="px-4 py-2.5 whitespace-nowrap" style={COL}>
-                      <span className="text-xs px-2 py-0.5 rounded-full"
-                        style={{ background: "#e8f0fe", color: "#1e40af", border: "1px solid #bfdbfe" }}>
-                        {expense.category}
-                      </span>
+                    {/* Category — editable */}
+                    <td className="px-3 py-2 whitespace-nowrap cursor-pointer" style={COL}
+                      onClick={() => !isInline && startInline(expense.id, "category", expense.category)}
+                      title="Click to edit">
+                      {isInline && inlineField === "category" ? (
+                        <input ref={inputRef} type="text" value={inlineValue} autoFocus
+                          onChange={e => setInlineValue(e.target.value)}
+                          onBlur={() => commitInline(expense)}
+                          onKeyDown={e => { if (e.key === "Enter") commitInline(expense); if (e.key === "Escape") cancelInline(); }}
+                          className="w-28" style={{ fontSize: 12 }} />
+                      ) : (
+                        <span className="text-xs px-2 py-0.5 rounded-full transition-colors hover:border-blue-400"
+                          style={{ background: "#e8f0fe", color: "#1e40af", border: "1px solid #bfdbfe" }}>
+                          {saving === expense.id && inlineField === "category" ? "…" : expense.category}
+                        </span>
+                      )}
                     </td>
 
-                    <td className="px-4 py-2.5 text-xs font-mono whitespace-nowrap" style={{ ...COL, color: "#64748b" }}>
-                      {fmtDate(expense.dueDate)}
+                    {/* Due Date — editable */}
+                    <td className="px-3 py-2 whitespace-nowrap cursor-pointer" style={COL}
+                      onClick={() => !isInline && startInline(expense.id, "dueDate", toInputDate(expense.dueDate))}
+                      title="Click to edit">
+                      {isInline && inlineField === "dueDate" ? (
+                        <input ref={inputRef} type="date" value={inlineValue} autoFocus
+                          onChange={e => setInlineValue(e.target.value)}
+                          onBlur={() => commitInline(expense)}
+                          onKeyDown={e => { if (e.key === "Enter") commitInline(expense); if (e.key === "Escape") cancelInline(); }}
+                          style={{ fontSize: 12, width: 130 }} />
+                      ) : (
+                        <span className="font-mono hover:text-blue-700 transition-colors" style={{ fontSize: 12, color: "#64748b" }}>
+                          {saving === expense.id && inlineField === "dueDate" ? "…" : fmtDate(expense.dueDate)}
+                        </span>
+                      )}
                     </td>
 
-                    <td className="px-4 py-2.5 text-right font-mono font-medium text-slate-800" style={COL}>
-                      {fmt(expense.amount)}
+                    {/* Amount Due — editable */}
+                    <td className="px-3 py-2 text-right cursor-pointer" style={COL}
+                      onClick={() => !isInline && startInline(expense.id, "amount", String(expense.amount))}
+                      title="Click to edit">
+                      {isInline && inlineField === "amount" ? (
+                        <input ref={inputRef} type="number" step="0.01" min="0" value={inlineValue} autoFocus
+                          onChange={e => setInlineValue(e.target.value)}
+                          onBlur={() => commitInline(expense)}
+                          onKeyDown={e => { if (e.key === "Enter") commitInline(expense); if (e.key === "Escape") cancelInline(); }}
+                          className="text-right" style={{ width: 90, fontSize: 13 }} />
+                      ) : (
+                        <span className="font-mono font-medium hover:text-blue-700 transition-colors" style={{ color: "#1e293b" }}>
+                          {saving === expense.id && inlineField === "amount" ? "…" : fmt(expense.amount)}
+                        </span>
+                      )}
                     </td>
 
-                    <td className="px-4 py-2.5 text-right cursor-pointer" style={COL}
+                    <td className="px-3 py-2 text-right cursor-pointer" style={COL}
                       onClick={() => !isInline && startInline(expense.id, "amountPaid", String(expense.amountPaid))}
                       title="Click to quick-edit">
                       {isInline && inlineField === "amountPaid" ? (
@@ -454,11 +513,11 @@ export function ExpenseTable({ expenses, onUpdate, onDelete, onMoveUp, onMoveDow
                       )}
                     </td>
 
-                    <td className="px-4 py-2.5 text-right font-mono font-semibold" style={{ ...COL, color: remaining === 0 ? "#cbd5e1" : remaining > 500 ? "#dc2626" : "#1e293b" }}>
+                    <td className="px-3 py-2 text-right font-mono font-semibold" style={{ ...COL, color: remaining === 0 ? "#cbd5e1" : remaining > 500 ? "#dc2626" : "#1e293b" }}>
                       {fmt(remaining)}
                     </td>
 
-                    <td className="px-4 py-2.5 whitespace-nowrap cursor-pointer" style={COL}
+                    <td className="px-3 py-2 whitespace-nowrap cursor-pointer" style={COL}
                       onClick={() => !isInline && startInline(expense.id, "status", expense.status ?? "")}
                       title="Click to quick-edit">
                       {isInline && inlineField === "status" ? (
@@ -476,7 +535,7 @@ export function ExpenseTable({ expenses, onUpdate, onDelete, onMoveUp, onMoveDow
                       )}
                     </td>
 
-                    <td className="px-4 py-2.5 text-xs cursor-pointer max-w-[180px]" style={COL}
+                    <td className="px-3 py-2 text-xs cursor-pointer max-w-[180px]" style={COL}
                       onClick={() => !isInline && startInline(expense.id, "notes", expense.notes ?? "")}
                       title="Click to quick-edit">
                       {isInline && inlineField === "notes" ? (
@@ -493,7 +552,7 @@ export function ExpenseTable({ expenses, onUpdate, onDelete, onMoveUp, onMoveDow
                       )}
                     </td>
 
-                    <td className="px-3 py-2.5 whitespace-nowrap">
+                    <td className="px-2 py-2 whitespace-nowrap">
                       <div className="flex items-center gap-1">
                         {onMoveUp && (
                           <button onClick={() => onMoveUp(expense.id)} title="Move up"
