@@ -172,8 +172,6 @@ export default function DashboardPage() {
   const iExp  = income.reduce((s, e) => s + e.amount, 0);
   const iRec  = income.reduce((s, e) => s + e.amountPaid, 0);
 
-  const totalDue  = mDue + aDue + lDue;
-  const totalPaid = mPaid + aPaid + lPaid;
   const totalRem  = mRem + aRem + lRem;
   const netBalance = iRec - totalRem;
 
@@ -230,15 +228,15 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ── Sticky balance bar — expenses only ──────────────────────────── */}
-      <div className="sticky top-0 z-20 border-b" style={{ background: "#0a1f38", borderColor: "#163152" }}>
+      {/* ── Sticky balance bar — monthly expenses only ───────────────────── */}
+      <div className="sticky top-0 z-20 border-b" style={{ background: "#8C8279", borderColor: "#7a7068" }}>
         <div className="max-w-screen-2xl mx-auto px-6 py-2 flex items-center gap-6 text-sm">
-          <span style={{ color: "rgba(255,255,255,0.5)" }}>Expenses:</span>
-          <span style={{ color: "#c8d8ea" }}>Due <strong style={{ color: "#fff" }}>{fmt(totalDue)}</strong></span>
-          <span style={{ color: "rgba(255,255,255,0.25)" }}>·</span>
-          <span style={{ color: "#86efac" }}>Paid <strong>{fmt(totalPaid)}</strong></span>
-          <span style={{ color: "rgba(255,255,255,0.25)" }}>·</span>
-          <span style={{ color: "#fca5a5" }}>Remaining <strong>{fmt(totalRem)}</strong></span>
+          <span style={{ color: "rgba(255,255,255,0.65)", letterSpacing: "0.06em", fontSize: 11 }}>MONTHLY EXPENSES</span>
+          <span style={{ color: "rgba(255,255,255,0.55)" }}>Due <strong style={{ color: "#fff" }}>{fmt(mDue)}</strong></span>
+          <span style={{ color: "rgba(255,255,255,0.3)" }}>·</span>
+          <span style={{ color: "rgba(255,255,255,0.55)" }}>Paid <strong style={{ color: "#d4f0dd" }}>{fmt(mPaid)}</strong></span>
+          <span style={{ color: "rgba(255,255,255,0.3)" }}>·</span>
+          <span style={{ color: "rgba(255,255,255,0.55)" }}>Remaining <strong style={{ color: "#ffd5d5" }}>{fmt(mRem)}</strong></span>
         </div>
       </div>
 

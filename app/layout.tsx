@@ -15,23 +15,19 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="en">
       <body className={`${inter.className} min-h-screen`} style={{ background: "#ffffff", color: "#0f172a" }}>
 
-        <header style={{ background: "linear-gradient(135deg, #0d2b4e 0%, #1a4a8a 100%)" }}
-          className="sticky top-0 z-50 shadow-lg">
-          <div className="max-w-screen-2xl mx-auto px-6 py-0 flex items-center justify-between h-14">
-            <Link href="/dashboard" className="flex items-center gap-3 hover:opacity-90 transition-opacity">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold"
-                style={{ background: "rgba(255,255,255,0.15)", color: "#fff", border: "1px solid rgba(255,255,255,0.25)" }}>
-                $
-              </div>
-              <span className="text-lg font-bold tracking-tight" style={{ color: "#fff", letterSpacing: "-0.02em" }}>
-                19028 Stone Brook
+        <header className="sticky top-0 z-50" style={{ background: "#0A1D3A", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+          <div className="max-w-screen-2xl mx-auto px-6 flex items-center justify-between" style={{ height: 64 }}>
+            <Link href="/dashboard" className="flex flex-col justify-center hover:opacity-85 transition-opacity" style={{ gap: 1 }}>
+              <span style={{ fontFamily: "Didot, 'Bodoni MT', 'Bodoni 72', Baskerville, 'Times New Roman', serif", fontSize: 22, fontWeight: 400, letterSpacing: "0.28em", color: "#fff", lineHeight: 1 }}>
+                STONE BROOK
+              </span>
+              <span style={{ fontFamily: "Didot, 'Bodoni MT', 'Bodoni 72', Baskerville, 'Times New Roman', serif", fontSize: 9, fontWeight: 400, letterSpacing: "1.05em", color: "rgba(255,255,255,0.65)", lineHeight: 1 }}>
+                ESTATE
               </span>
             </Link>
             <nav className="flex items-center gap-6 text-sm">
-              <Link href="/dashboard"
-                className="font-medium transition-colors"
-                style={{ color: "rgba(255,255,255,0.75)" }}>
-                Dashboard
+              <Link href="/dashboard" className="font-medium transition-colors" style={{ color: "rgba(255,255,255,0.65)", letterSpacing: "0.08em", fontSize: 11 }}>
+                DASHBOARD
               </Link>
             </nav>
           </div>
