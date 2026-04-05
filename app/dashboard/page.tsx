@@ -49,6 +49,7 @@ export default function DashboardPage() {
   });
   const [addError, setAddError]       = useState<string | null>(null);
   const [addIncomeError, setAddIncomeError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"overview" | "income">("overview");
 
   const fetchExpenses = useCallback(async () => {
     setLoading(true);
@@ -240,6 +241,21 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* ── Tab bar ── */}
+      <div style={{ borderBottom: "1px solid #e2e8f0", background: "#fff" }}>
+        <div className="max-w-screen-2xl mx-auto px-6 flex gap-1 pt-2">
+          {(["overview", "income"] as const).map(tab => (
+            <button key={tab} onClick={() => setActiveTab(tab)}
+              className="px-5 py-2 text-sm font-semibold transition-all"
+              style={activeTab === tab
+                ? { color: NAVY, borderBottom: `2px solid ${NAVY}`, background: "transparent" }
+                : { color: "#94a3b8", borderBottom: "2px solid transparent", background: "transparent" }}>
+              {tab === "overview" ? "Overview" : "Income"}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="max-w-screen-2xl mx-auto px-6 py-4">
 
         {genMsg && (
@@ -251,6 +267,7 @@ export default function DashboardPage() {
           </div>
         )}
 
+        {activeTab === "overview" && <>
         {/* ── MONTHLY SUMMARY CARDS ────────────────────────────────────────── */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
           {monthlyCards.map(c => (
@@ -384,8 +401,9 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* ── INCOME ───────────────────────────────────────────────────────── */}
-        <div className="mb-6">
+        </>}
+
+        {activeTab === "income" && <div className="mb-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               <div className="w-1 h-6 rounded-full" style={{ background: "#0f766e" }} />
@@ -436,7 +454,7 @@ export default function DashboardPage() {
               onMoveUp={id => handleMove(income, id, "up")} onMoveDown={id => handleMove(income, id, "down")}
               headerColor="#0f766e" />
           )}
-        </div>
+        </div>}
 
       </div>
     </div>
