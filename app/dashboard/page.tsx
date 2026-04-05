@@ -278,8 +278,24 @@ export default function DashboardPage() {
         {activeTab === "overview" && (
           <>
             {/* Monthly summary cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
               {monthlyCards.map(c => (
+                <div key={c.label} className="rounded-lg p-3 shadow-sm"
+                  style={{ background: "#fff", border: `1px solid #e2e8f0`, borderTop: `3px solid ${c.accent}` }}>
+                  <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: "#94a3b8" }}>{c.label}</p>
+                  <p className="text-xl font-bold tabular-nums" style={{ color: c.accent }}>{c.value}</p>
+                  {c.sub && <p className="text-xs mt-1" style={{ color: "#94a3b8" }}>{c.sub}</p>}
+                </div>
+              ))}
+            </div>
+
+            {/* Income summary cards */}
+            <div className="grid grid-cols-3 gap-3 mb-6">
+              {[
+                { label: "Income Expected", value: fmt(iExp), sub: `${income.length} sources`, accent: "#0f766e" },
+                { label: "Income Received", value: fmt(iRec), sub: `of ${fmt(iExp)}`,          accent: "#16a34a" },
+                { label: "Net Balance",     value: fmt(netBalance), sub: netBalance >= 0 ? "surplus" : "deficit", accent: netBalance >= 0 ? "#16a34a" : "#dc2626" },
+              ].map(c => (
                 <div key={c.label} className="rounded-lg p-3 shadow-sm"
                   style={{ background: "#fff", border: `1px solid #e2e8f0`, borderTop: `3px solid ${c.accent}` }}>
                   <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: "#94a3b8" }}>{c.label}</p>
