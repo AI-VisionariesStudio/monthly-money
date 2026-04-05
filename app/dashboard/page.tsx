@@ -290,11 +290,10 @@ export default function DashboardPage() {
             </div>
 
             {/* Income summary cards */}
-            <div className="grid grid-cols-3 gap-3 mb-6">
+            <div className="grid grid-cols-2 gap-3 mb-6">
               {[
                 { label: "Income Expected", value: fmt(iExp), sub: `${income.length} sources`, accent: "#0f766e" },
                 { label: "Income Received", value: fmt(iRec), sub: `of ${fmt(iExp)}`,          accent: "#16a34a" },
-                { label: "Net Balance",     value: fmt(netBalance), sub: netBalance >= 0 ? "surplus" : "deficit", accent: netBalance >= 0 ? "#16a34a" : "#dc2626" },
               ].map(c => (
                 <div key={c.label} className="rounded-lg p-3 shadow-sm"
                   style={{ background: "#fff", border: `1px solid #e2e8f0`, borderTop: `3px solid ${c.accent}` }}>
