@@ -50,10 +50,10 @@ export default function DashboardPage() {
   const [addError, setAddError]           = useState<string | null>(null);
   const [addIncomeError, setAddIncomeError] = useState<string | null>(null);
   const [activeTab, setActiveTab]         = useState<"overview" | "income">("overview");
-  const [openMonthly, setOpenMonthly]     = useState(true);
-  const [openAnnual,  setOpenAnnual]      = useState(true);
-  const [openLiens,   setOpenLiens]       = useState(true);
-  const [openIncome,  setOpenIncome]      = useState(true);
+  const [openMonthly, setOpenMonthly]     = useState(false);
+  const [openAnnual,  setOpenAnnual]      = useState(false);
+  const [openLiens,   setOpenLiens]       = useState(false);
+  const [openIncome,  setOpenIncome]      = useState(false);
 
   const fetchExpenses = useCallback(async () => {
     setLoading(true);
