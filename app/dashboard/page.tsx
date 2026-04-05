@@ -6,7 +6,7 @@ import { ExpenseTable, type Expense } from "@/components/ExpenseTable";
 import { computeStatus } from "@/lib/status";
 
 const NAVY       = "#0d2b4e";
-const ANNUAL_HDR = "#1a3d6e"; // slightly lighter navy for annual section
+const ANNUAL_HDR = "#1a3d6e";
 
 function fmt(v: number) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(v);
@@ -31,15 +31,15 @@ function fmtMonth(mk: string) {
 interface StatCard { label: string; value: string; sub?: string; accent: string; }
 
 export default function DashboardPage() {
-  const router   = useRouter();
-  const [monthKey]   = useState(getCurrentMonthKey);
+  const router = useRouter();
+  const [monthKey] = useState(getCurrentMonthKey);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading]   = useState(true);
   const [generating, setGenerating] = useState(false);
   const [genMsg, setGenMsg]     = useState<string | null>(null);
-  const [showAdd, setShowAdd]         = useState(false);
-  const [showAddIncome, setShowAddIncome] = useState(false);
-  const [addForm, setAddForm]   = useState({
+  const [showAdd, setShowAdd]               = useState(false);
+  const [showAddIncome, setShowAddIncome]   = useState(false);
+  const [addForm, setAddForm] = useState({
     description: "", amount: "", category: "",
     dueDate: `${getCurrentMonthKey()}-01`, isRecurring: false, frequency: "monthly",
   });
@@ -47,9 +47,13 @@ export default function DashboardPage() {
     description: "", amount: "", amountPaid: "", category: "Income",
     dueDate: `${getCurrentMonthKey()}-01`,
   });
-  const [addError, setAddError]       = useState<string | null>(null);
+  const [addError, setAddError]           = useState<string | null>(null);
   const [addIncomeError, setAddIncomeError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"overview" | "income">("overview");
+  const [activeTab, setActiveTab]         = useState<"overview" | "income">("overview");
+  const [openMonthly, setOpenMonthly]     = useState(true);
+  const [openAnnual,  setOpenAnnual]      = useState(true);
+  const [openLiens,   setOpenLiens]       = useState(true);
+  const [openIncome,  setOpenIncome]      = useState(true);
 
   const fetchExpenses = useCallback(async () => {
     setLoading(true);
@@ -154,13 +158,13 @@ export default function DashboardPage() {
     }
   }
 
-  // ── Split expenses ────────────────────────────────────────────────────────
+  // ── Split expenses ─────────────────────────────────────────────────────────
   const monthly = expenses.filter(e => e.frequency === "monthly");
   const annual  = expenses.filter(e => e.frequency === "annual");
   const liens   = expenses.filter(e => e.frequency === "lien");
   const income  = expenses.filter(e => e.frequency === "income");
 
-  // ── Stats ─────────────────────────────────────────────────────────────────
+  // ── Stats ──────────────────────────────────────────────────────────────────
   const mDue  = monthly.reduce((s, e) => s + e.amount, 0);
   const mPaid = monthly.reduce((s, e) => s + e.amountPaid, 0);
   const mRem  = monthly.reduce((s, e) => s + Math.max(0, e.amount - e.amountPaid), 0);
@@ -173,7 +177,7 @@ export default function DashboardPage() {
   const iExp  = income.reduce((s, e) => s + e.amount, 0);
   const iRec  = income.reduce((s, e) => s + e.amountPaid, 0);
 
-  const totalRem  = mRem + aRem + lRem;
+  const totalRem   = mRem + aRem + lRem;
   const netBalance = iRec - totalRem;
 
   const nonIncomeExpenses = expenses.filter(e => e.frequency !== "income");
@@ -187,11 +191,16 @@ export default function DashboardPage() {
   }).length;
 
   const monthlyCards: StatCard[] = [
-    { label: "Monthly Due",      value: fmt(mDue),            sub: `${monthly.length} items`,     accent: NAVY },
-    { label: "Paid",             value: fmt(mPaid),           sub: `${paidCount} paid`,           accent: "#16a34a" },
-    { label: "Remaining",        value: fmt(mRem),            sub: `of ${fmt(mDue)}`,             accent: "#dc2626" },
-    { label: "Past Due",         value: String(pastDueCount), sub: `need attention`,              accent: "#b91c1c" },
+    { label: "Monthly Due",  value: fmt(mDue),            sub: `${monthly.length} items`, accent: NAVY },
+    { label: "Paid",         value: fmt(mPaid),           sub: `${paidCount} paid`,       accent: "#16a34a" },
+    { label: "Remaining",    value: fmt(mRem),            sub: `of ${fmt(mDue)}`,         accent: "#dc2626" },
+    { label: "Past Due",     value: String(pastDueCount), sub: `need attention`,          accent: "#b91c1c" },
   ];
+
+  // ── Shared section header style ────────────────────────────────────────────
+  const chevron = (open: boolean) => (
+    <span className="text-xs ml-1" style={{ color: "#94a3b8" }}>{open ? "▾" : "▸"}</span>
+  );
 
   return (
     <div style={{ background: "#ffffff", minHeight: "100vh" }}>
@@ -217,8 +226,6 @@ export default function DashboardPage() {
               </button>
             </div>
           </div>
-
-          {/* Progress bar — monthly expenses only */}
           <div className="mt-4 h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.15)" }}>
             <div className="h-full rounded-full transition-all duration-700"
               style={{ width: `${mDue > 0 ? (mPaid / mDue) * 100 : 0}%`, background: "linear-gradient(90deg, #34d399, #10b981)" }} />
@@ -229,7 +236,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ── Sticky balance bar — monthly expenses only ───────────────────── */}
+      {/* Sticky balance bar */}
       <div className="sticky top-0 z-20 border-b" style={{ background: "#8C8279", borderColor: "#7a7068" }}>
         <div className="max-w-screen-2xl mx-auto px-6 py-2 flex items-center gap-6 text-sm">
           <span style={{ color: "rgba(255,255,255,0.65)", letterSpacing: "0.06em", fontSize: 11 }}>MONTHLY EXPENSES</span>
@@ -241,7 +248,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ── Tab bar ── */}
+      {/* Tab bar */}
       <div style={{ borderBottom: "1px solid #e2e8f0", background: "#fff" }}>
         <div className="max-w-screen-2xl mx-auto px-6 flex gap-1 pt-2">
           {(["overview", "income"] as const).map(tab => (
@@ -267,194 +274,223 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {activeTab === "overview" && <>
-        {/* ── MONTHLY SUMMARY CARDS ────────────────────────────────────────── */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-          {monthlyCards.map(c => (
-            <div key={c.label} className="rounded-lg p-3 shadow-sm"
-              style={{ background: "#fff", border: `1px solid #e2e8f0`, borderTop: `3px solid ${c.accent}` }}>
-              <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: "#94a3b8" }}>{c.label}</p>
-              <p className="text-xl font-bold tabular-nums" style={{ color: c.accent }}>{c.value}</p>
-              {c.sub && <p className="text-xs mt-1" style={{ color: "#94a3b8" }}>{c.sub}</p>}
-            </div>
-          ))}
-        </div>
-
-        {/* ── MONTHLY EXPENSES ─────────────────────────────────────────────── */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-3">
-              <div className="w-1 h-5 rounded-full" style={{ background: NAVY }} />
-              <h2 className="text-base font-bold" style={{ color: NAVY }}>Monthly Expenses</h2>
-            </div>
-            <button onClick={() => setShowAdd(!showAdd)}
-              className="px-3 py-1.5 text-xs font-semibold rounded-lg transition-all"
-              style={{ background: showAdd ? "#fee2e2" : "#fff", color: showAdd ? "#b91c1c" : NAVY, border: `1px solid ${showAdd ? "#fecaca" : "#cbd5e1"}` }}>
-              {showAdd ? "Cancel" : "+ Add Expense"}
-            </button>
-          </div>
-
-          {/* Add form */}
-          {showAdd && (
-            <form onSubmit={handleAddExpense}
-              className="mb-5 rounded-xl p-5 grid grid-cols-2 md:grid-cols-3 gap-4"
-              style={{ background: "#fff", border: "1px solid #cbd5e1", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
-              {[
-                { label: "Description *", key: "description", type: "text",   placeholder: "e.g. Netflix" },
-                { label: "Amount *",      key: "amount",      type: "number", placeholder: "0.00" },
-                { label: "Category *",    key: "category",    type: "text",   placeholder: "e.g. GR Business" },
-                { label: "Due Date *",    key: "dueDate",     type: "date",   placeholder: "" },
-              ].map(f => (
-                <div key={f.key}>
-                  <label className="block text-xs font-medium mb-1" style={{ color: "#64748b" }}>{f.label}</label>
-                  <input type={f.type} value={(addForm as any)[f.key]} placeholder={f.placeholder}
-                    onChange={e => setAddForm({ ...addForm, [f.key]: e.target.value })}
-                    className="w-full px-3 py-2 text-sm rounded-lg focus:outline-none"
-                    style={{ background: "#f8fafc", border: "1px solid #e2e8f0", color: "#0f172a" }} />
+        {/* ── OVERVIEW TAB ─────────────────────────────────────────────────── */}
+        {activeTab === "overview" && (
+          <>
+            {/* Monthly summary cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+              {monthlyCards.map(c => (
+                <div key={c.label} className="rounded-lg p-3 shadow-sm"
+                  style={{ background: "#fff", border: `1px solid #e2e8f0`, borderTop: `3px solid ${c.accent}` }}>
+                  <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: "#94a3b8" }}>{c.label}</p>
+                  <p className="text-xl font-bold tabular-nums" style={{ color: c.accent }}>{c.value}</p>
+                  {c.sub && <p className="text-xs mt-1" style={{ color: "#94a3b8" }}>{c.sub}</p>}
                 </div>
               ))}
-              <div className="flex items-end gap-4">
-                <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: "#64748b" }}>
-                  <input type="checkbox" checked={addForm.isRecurring}
-                    onChange={e => setAddForm({ ...addForm, isRecurring: e.target.checked })}
-                    className="w-4 h-4 accent-blue-700" /> Recurring
-                </label>
-                <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: "#64748b" }}>
-                  <input type="checkbox" checked={addForm.frequency === "annual"}
-                    onChange={e => setAddForm({ ...addForm, frequency: e.target.checked ? "annual" : "monthly" })}
-                    className="w-4 h-4 accent-blue-700" /> Annual
-                </label>
+            </div>
+
+            {/* Monthly Expenses */}
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-3">
+                <button onClick={() => setOpenMonthly(!openMonthly)}
+                  className="flex items-center gap-3 hover:opacity-75 transition-opacity">
+                  <div className="w-1 h-5 rounded-full" style={{ background: NAVY }} />
+                  <h2 className="text-base font-bold" style={{ color: NAVY }}>Monthly Expenses</h2>
+                  {chevron(openMonthly)}
+                </button>
+                {openMonthly && (
+                  <button onClick={() => setShowAdd(!showAdd)}
+                    className="px-3 py-1.5 text-xs font-semibold rounded-lg transition-all"
+                    style={{ background: showAdd ? "#fee2e2" : "#fff", color: showAdd ? "#b91c1c" : NAVY, border: `1px solid ${showAdd ? "#fecaca" : "#cbd5e1"}` }}>
+                    {showAdd ? "Cancel" : "+ Add Expense"}
+                  </button>
+                )}
               </div>
-              <div className="col-span-2 md:col-span-3 flex items-center gap-3">
-                {addError && <p className="text-xs" style={{ color: "#dc2626" }}>{addError}</p>}
-                <button type="submit"
-                  className="px-5 py-2 text-sm font-semibold rounded-lg transition-all"
-                  style={{ background: NAVY, color: "#fff" }}>
-                  Add Expense
+              {openMonthly && (
+                <>
+                  {showAdd && (
+                    <form onSubmit={handleAddExpense}
+                      className="mb-5 rounded-xl p-5 grid grid-cols-2 md:grid-cols-3 gap-4"
+                      style={{ background: "#fff", border: "1px solid #cbd5e1", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+                      {[
+                        { label: "Description *", key: "description", type: "text",   placeholder: "e.g. Netflix" },
+                        { label: "Amount *",      key: "amount",      type: "number", placeholder: "0.00" },
+                        { label: "Category *",    key: "category",    type: "text",   placeholder: "e.g. GR Business" },
+                        { label: "Due Date *",    key: "dueDate",     type: "date",   placeholder: "" },
+                      ].map(f => (
+                        <div key={f.key}>
+                          <label className="block text-xs font-medium mb-1" style={{ color: "#64748b" }}>{f.label}</label>
+                          <input type={f.type} value={(addForm as any)[f.key]} placeholder={f.placeholder}
+                            onChange={e => setAddForm({ ...addForm, [f.key]: e.target.value })}
+                            className="w-full px-3 py-2 text-sm rounded-lg focus:outline-none"
+                            style={{ background: "#f8fafc", border: "1px solid #e2e8f0", color: "#0f172a" }} />
+                        </div>
+                      ))}
+                      <div className="flex items-end gap-4">
+                        <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: "#64748b" }}>
+                          <input type="checkbox" checked={addForm.isRecurring}
+                            onChange={e => setAddForm({ ...addForm, isRecurring: e.target.checked })}
+                            className="w-4 h-4 accent-blue-700" /> Recurring
+                        </label>
+                        <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: "#64748b" }}>
+                          <input type="checkbox" checked={addForm.frequency === "annual"}
+                            onChange={e => setAddForm({ ...addForm, frequency: e.target.checked ? "annual" : "monthly" })}
+                            className="w-4 h-4 accent-blue-700" /> Annual
+                        </label>
+                      </div>
+                      <div className="col-span-2 md:col-span-3 flex items-center gap-3">
+                        {addError && <p className="text-xs" style={{ color: "#dc2626" }}>{addError}</p>}
+                        <button type="submit"
+                          className="px-5 py-2 text-sm font-semibold rounded-lg transition-all"
+                          style={{ background: NAVY, color: "#fff" }}>
+                          Add Expense
+                        </button>
+                      </div>
+                    </form>
+                  )}
+                  {loading ? (
+                    <div className="py-16 text-center" style={{ color: "#94a3b8" }}>Loading…</div>
+                  ) : (
+                    <ExpenseTable expenses={monthly} onUpdate={handleUpdate} onDelete={handleDelete}
+                      onMoveUp={id => handleMove(monthly, id, "up")} onMoveDown={id => handleMove(monthly, id, "down")}
+                      headerColor={NAVY} />
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Annual Expenses */}
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-2">
+                <button onClick={() => setOpenAnnual(!openAnnual)}
+                  className="flex items-center gap-3 hover:opacity-75 transition-opacity">
+                  <div className="w-1 h-5 rounded-full" style={{ background: "#1a5c8a" }} />
+                  <h2 className="text-base font-bold" style={{ color: "#1a3a5c" }}>Annual Expenses</h2>
+                  {chevron(openAnnual)}
                 </button>
               </div>
-            </form>
-          )}
-
-          {loading ? (
-            <div className="py-16 text-center" style={{ color: "#94a3b8" }}>Loading…</div>
-          ) : (
-            <ExpenseTable expenses={monthly} onUpdate={handleUpdate} onDelete={handleDelete}
-              onMoveUp={id => handleMove(monthly, id, "up")} onMoveDown={id => handleMove(monthly, id, "down")}
-              headerColor={NAVY} />
-          )}
-        </div>
-
-        {/* ── ANNUAL EXPENSES ──────────────────────────────────────────────── */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-3">
-              <div className="w-1 h-5 rounded-full" style={{ background: "#1a5c8a" }} />
-              <h2 className="text-base font-bold" style={{ color: "#1a3a5c" }}>Annual Expenses</h2>
+              {openAnnual && (
+                <>
+                  <div className="grid grid-cols-3 gap-2 mb-3">
+                    {[
+                      { label: "Due",       value: fmt(aDue),  accent: "#1a5c8a" },
+                      { label: "Paid",      value: fmt(aPaid), accent: "#16a34a" },
+                      { label: "Remaining", value: fmt(aRem),  accent: "#dc2626" },
+                    ].map(s => (
+                      <div key={s.label} className="rounded-lg px-3 py-2"
+                        style={{ background: "#fff", border: "1px solid #e2e8f0", borderLeft: `3px solid ${s.accent}` }}>
+                        <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#94a3b8" }}>{s.label}</p>
+                        <p className="text-base font-bold tabular-nums mt-0.5" style={{ color: s.accent }}>{s.value}</p>
+                      </div>
+                    ))}
+                  </div>
+                  {!loading && (
+                    <ExpenseTable expenses={annual} onUpdate={handleUpdate} onDelete={handleDelete}
+                      onMoveUp={id => handleMove(annual, id, "up")} onMoveDown={id => handleMove(annual, id, "down")}
+                      headerColor={ANNUAL_HDR} />
+                  )}
+                </>
+              )}
             </div>
-          </div>
-          <div className="grid grid-cols-3 gap-2 mb-3">
-            {[
-              { label: "Due",       value: fmt(aDue),  accent: "#1a5c8a" },
-              { label: "Paid",      value: fmt(aPaid), accent: "#16a34a" },
-              { label: "Remaining", value: fmt(aRem),  accent: "#dc2626" },
-            ].map(s => (
-              <div key={s.label} className="rounded-lg px-3 py-2"
-                style={{ background: "#fff", border: "1px solid #e2e8f0", borderLeft: `3px solid ${s.accent}` }}>
-                <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#94a3b8" }}>{s.label}</p>
-                <p className="text-base font-bold tabular-nums mt-0.5" style={{ color: s.accent }}>{s.value}</p>
-              </div>
-            ))}
-          </div>
-          {loading ? null : (
-            <ExpenseTable expenses={annual} onUpdate={handleUpdate} onDelete={handleDelete}
-              onMoveUp={id => handleMove(annual, id, "up")} onMoveDown={id => handleMove(annual, id, "down")}
-              headerColor={ANNUAL_HDR} />
-          )}
-        </div>
 
-        {/* ── LIENS & COLLECTIONS ──────────────────────────────────────────── */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-3">
-              <div className="w-1 h-5 rounded-full" style={{ background: "#7f1d1d" }} />
-              <h2 className="text-base font-bold" style={{ color: "#7f1d1d" }}>Liens, Collections &amp; Defaulted Debt</h2>
+            {/* Liens & Collections */}
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-2">
+                <button onClick={() => setOpenLiens(!openLiens)}
+                  className="flex items-center gap-3 hover:opacity-75 transition-opacity">
+                  <div className="w-1 h-5 rounded-full" style={{ background: "#7f1d1d" }} />
+                  <h2 className="text-base font-bold" style={{ color: "#7f1d1d" }}>Liens, Collections &amp; Defaulted Debt</h2>
+                  {chevron(openLiens)}
+                </button>
+              </div>
+              {openLiens && (
+                <>
+                  <div className="grid grid-cols-3 gap-2 mb-3">
+                    {[
+                      { label: "Total",     value: fmt(lDue),  accent: "#7f1d1d" },
+                      { label: "Paid",      value: fmt(lPaid), accent: "#16a34a" },
+                      { label: "Remaining", value: fmt(lRem),  accent: "#dc2626" },
+                    ].map(s => (
+                      <div key={s.label} className="rounded-lg px-3 py-2"
+                        style={{ background: "#fff", border: "1px solid #e2e8f0", borderLeft: `3px solid ${s.accent}` }}>
+                        <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#94a3b8" }}>{s.label}</p>
+                        <p className="text-base font-bold tabular-nums mt-0.5" style={{ color: s.accent }}>{s.value}</p>
+                      </div>
+                    ))}
+                  </div>
+                  {!loading && (
+                    <ExpenseTable expenses={liens} onUpdate={handleUpdate} onDelete={handleDelete}
+                      onMoveUp={id => handleMove(liens, id, "up")} onMoveDown={id => handleMove(liens, id, "down")}
+                      headerColor="#7f1d1d" />
+                  )}
+                </>
+              )}
             </div>
-          </div>
-          <div className="grid grid-cols-3 gap-2 mb-3">
-            {[
-              { label: "Total",     value: fmt(lDue),  accent: "#7f1d1d" },
-              { label: "Paid",      value: fmt(lPaid), accent: "#16a34a" },
-              { label: "Remaining", value: fmt(lRem),  accent: "#dc2626" },
-            ].map(s => (
-              <div key={s.label} className="rounded-lg px-3 py-2"
-                style={{ background: "#fff", border: "1px solid #e2e8f0", borderLeft: `3px solid ${s.accent}` }}>
-                <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#94a3b8" }}>{s.label}</p>
-                <p className="text-base font-bold tabular-nums mt-0.5" style={{ color: s.accent }}>{s.value}</p>
-              </div>
-            ))}
-          </div>
-          {loading ? null : (
-            <ExpenseTable expenses={liens} onUpdate={handleUpdate} onDelete={handleDelete}
-              onMoveUp={id => handleMove(liens, id, "up")} onMoveDown={id => handleMove(liens, id, "down")}
-              headerColor="#7f1d1d" />
-          )}
-        </div>
+          </>
+        )}
 
-        </>}
-
-        {activeTab === "income" && <div className="mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-1 h-6 rounded-full" style={{ background: "#0f766e" }} />
-              <div>
-                <h2 className="text-base font-bold" style={{ color: "#0f766e" }}>Income</h2>
-                <p className="text-xs" style={{ color: "#94a3b8" }}>
-                  {income.length} sources · Expected: {fmt(iExp)} · Received: {fmt(iRec)} · Net Balance: <span style={{ color: netBalance >= 0 ? "#16a34a" : "#dc2626", fontWeight: 600 }}>{fmt(netBalance)}</span>
-                </p>
-              </div>
-            </div>
-            <button onClick={() => setShowAddIncome(!showAddIncome)}
-              className="px-3 py-1.5 text-xs font-semibold rounded-lg transition-all"
-              style={{ background: showAddIncome ? "#fee2e2" : "#fff", color: showAddIncome ? "#b91c1c" : "#0f766e", border: `1px solid ${showAddIncome ? "#fecaca" : "#99f6e4"}` }}>
-              {showAddIncome ? "Cancel" : "+ Add Income"}
-            </button>
-          </div>
-
-          {showAddIncome && (
-            <form onSubmit={handleAddIncome}
-              className="mb-5 rounded-xl p-5 grid grid-cols-2 md:grid-cols-5 gap-4"
-              style={{ background: "#fff", border: "1px solid #99f6e4", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
-              {[
-                { label: "Description *",    key: "description", type: "text",   placeholder: "e.g. Paycheck" },
-                { label: "Expected Amount *", key: "amount",     type: "number", placeholder: "0.00" },
-                { label: "Amount Received",  key: "amountPaid",  type: "number", placeholder: "0.00" },
-                { label: "Category",         key: "category",    type: "text",   placeholder: "Income" },
-                { label: "Date *",           key: "dueDate",     type: "date",   placeholder: "" },
-              ].map(f => (
-                <div key={f.key}>
-                  <label className="block text-xs font-medium mb-1" style={{ color: "#64748b" }}>{f.label}</label>
-                  <input type={f.type} value={(addIncomeForm as any)[f.key]} placeholder={f.placeholder}
-                    onChange={e => setAddIncomeForm({ ...addIncomeForm, [f.key]: e.target.value })}
-                    className="w-full px-3 py-2 text-sm rounded-lg focus:outline-none"
-                    style={{ background: "#f8fafc", border: "1px solid #e2e8f0", color: "#0f172a" }} />
+        {/* ── INCOME TAB ───────────────────────────────────────────────────── */}
+        {activeTab === "income" && (
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <button onClick={() => setOpenIncome(!openIncome)}
+                className="flex items-center gap-3 hover:opacity-75 transition-opacity">
+                <div className="w-1 h-6 rounded-full" style={{ background: "#0f766e" }} />
+                <div>
+                  <h2 className="text-base font-bold" style={{ color: "#0f766e" }}>Income</h2>
+                  <p className="text-xs" style={{ color: "#94a3b8" }}>
+                    {income.length} sources · Expected: {fmt(iExp)} · Received: {fmt(iRec)} · Net Balance:{" "}
+                    <span style={{ color: netBalance >= 0 ? "#16a34a" : "#dc2626", fontWeight: 600 }}>{fmt(netBalance)}</span>
+                  </p>
                 </div>
-              ))}
-              <div className="col-span-2 md:col-span-5 flex items-center gap-3">
-                {addIncomeError && <p className="text-xs" style={{ color: "#dc2626" }}>{addIncomeError}</p>}
-                <button type="submit"
-                  className="px-5 py-2 text-sm font-semibold rounded-lg"
-                  style={{ background: "#0f766e", color: "#fff" }}>Add Income</button>
-              </div>
-            </form>
-          )}
-
-          {loading ? null : (
-            <ExpenseTable expenses={income} onUpdate={handleUpdate} onDelete={handleDelete}
-              onMoveUp={id => handleMove(income, id, "up")} onMoveDown={id => handleMove(income, id, "down")}
-              headerColor="#0f766e" />
-          )}
-        </div>}
+                {chevron(openIncome)}
+              </button>
+              {openIncome && (
+                <button onClick={() => setShowAddIncome(!showAddIncome)}
+                  className="px-3 py-1.5 text-xs font-semibold rounded-lg transition-all"
+                  style={{ background: showAddIncome ? "#fee2e2" : "#fff", color: showAddIncome ? "#b91c1c" : "#0f766e", border: `1px solid ${showAddIncome ? "#fecaca" : "#99f6e4"}` }}>
+                  {showAddIncome ? "Cancel" : "+ Add Income"}
+                </button>
+              )}
+            </div>
+            {openIncome && (
+              <>
+                {showAddIncome && (
+                  <form onSubmit={handleAddIncome}
+                    className="mb-5 rounded-xl p-5 grid grid-cols-2 md:grid-cols-5 gap-4"
+                    style={{ background: "#fff", border: "1px solid #99f6e4", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+                    {[
+                      { label: "Description *",     key: "description", type: "text",   placeholder: "e.g. Paycheck" },
+                      { label: "Expected Amount *",  key: "amount",      type: "number", placeholder: "0.00" },
+                      { label: "Amount Received",    key: "amountPaid",  type: "number", placeholder: "0.00" },
+                      { label: "Category",           key: "category",    type: "text",   placeholder: "Income" },
+                      { label: "Date *",             key: "dueDate",     type: "date",   placeholder: "" },
+                    ].map(f => (
+                      <div key={f.key}>
+                        <label className="block text-xs font-medium mb-1" style={{ color: "#64748b" }}>{f.label}</label>
+                        <input type={f.type} value={(addIncomeForm as any)[f.key]} placeholder={f.placeholder}
+                          onChange={e => setAddIncomeForm({ ...addIncomeForm, [f.key]: e.target.value })}
+                          className="w-full px-3 py-2 text-sm rounded-lg focus:outline-none"
+                          style={{ background: "#f8fafc", border: "1px solid #e2e8f0", color: "#0f172a" }} />
+                      </div>
+                    ))}
+                    <div className="col-span-2 md:col-span-5 flex items-center gap-3">
+                      {addIncomeError && <p className="text-xs" style={{ color: "#dc2626" }}>{addIncomeError}</p>}
+                      <button type="submit"
+                        className="px-5 py-2 text-sm font-semibold rounded-lg"
+                        style={{ background: "#0f766e", color: "#fff" }}>Add Income</button>
+                    </div>
+                  </form>
+                )}
+                {!loading && (
+                  <ExpenseTable expenses={income} onUpdate={handleUpdate} onDelete={handleDelete}
+                    onMoveUp={id => handleMove(income, id, "up")} onMoveDown={id => handleMove(income, id, "down")}
+                    headerColor="#0f766e" />
+                )}
+              </>
+            )}
+          </div>
+        )}
 
       </div>
     </div>
