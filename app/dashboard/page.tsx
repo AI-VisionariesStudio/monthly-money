@@ -244,7 +244,7 @@ export default function DashboardPage() {
                 <p className="text-xs font-semibold" style={{ color: "rgba(255,255,255,0.9)" }}>
                   {fmtEasternTime(now).weekday}, {fmtEasternTime(now).date}
                 </p>
-                <p className="text-lg font-bold tabular-nums" style={{ color: "#ffffff" }}>
+                <p className="text-sm font-semibold tabular-nums" style={{ color: "#ffffff" }}>
                   {fmtEasternTime(now).time} <span className="text-xs font-normal" style={{ color: "rgba(255,255,255,0.5)" }}>ET</span>
                 </p>
               </div>
