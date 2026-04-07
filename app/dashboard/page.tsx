@@ -62,7 +62,7 @@ export default function DashboardPage() {
   });
   const [addError, setAddError]           = useState<string | null>(null);
   const [addIncomeError, setAddIncomeError] = useState<string | null>(null);
-  const [activeTab, setActiveTab]         = useState<"overview" | "income">("overview");
+  const [activeTab, setActiveTab]         = useState<"overview" | "income" | "paid">("overview");
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 60000);
@@ -71,7 +71,6 @@ export default function DashboardPage() {
   const [openMonthly, setOpenMonthly] = useState(false);
   const [openAnnual,  setOpenAnnual]  = useState(false);
   const [openLiens,   setOpenLiens]   = useState(false);
-  const [openIncome,  setOpenIncome]  = useState(false);
   const [openGR,      setOpenGR]      = useState(false);
 
   const fetchExpenses = useCallback(async () => {
@@ -244,6 +243,14 @@ export default function DashboardPage() {
     insights.push({ text: `Net financial position: ${fmt(Math.abs(netBalance))} shortfall against remaining obligations.`, tone: "warning" });
 
   // ── Section header helper ─────────────────────────────────────────────────
+  function jumpToSection(sectionId: string, openFn: () => void) {
+    setActiveTab("overview");
+    openFn();
+    setTimeout(() => {
+      document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 80);
+  }
+
   const chevron = (open: boolean) => (
     <span style={{ color: GOLD, fontSize: 10, marginLeft: 6 }}>{open ? "▾" : "▸"}</span>
   );
@@ -322,13 +329,13 @@ export default function DashboardPage() {
       {/* ── Tab bar ───────────────────────────────────────────────────────── */}
       <div style={{ borderBottom: `1px solid ${BORDER}`, background: SURFACE }}>
         <div className="max-w-screen-2xl mx-auto px-8 flex gap-0 pt-0">
-          {(["overview", "income"] as const).map(tab => (
+          {(["overview", "income", "paid"] as const).map(tab => (
             <button key={tab} onClick={() => setActiveTab(tab)}
               className="px-6 py-3.5 text-xs transition-all"
               style={activeTab === tab
                 ? { color: OBSIDIAN, borderBottom: `2px solid ${GOLD}`, background: "transparent", letterSpacing: "0.16em", fontWeight: 600 }
                 : { color: "#9E9E9E", borderBottom: "2px solid transparent", background: "transparent", letterSpacing: "0.16em" }}>
-              {tab === "overview" ? "OVERVIEW" : "INCOME"}
+              {tab === "overview" ? "OVERVIEW" : tab === "income" ? "INCOME" : "PAID"}
             </button>
           ))}
         </div>
@@ -349,7 +356,7 @@ export default function DashboardPage() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
               {[
                 { label: "Monthly Due",  value: fmt(mDue),           sub: `${monthly.length} items`,  accent: OBSIDIAN },
-                { label: "Total Paid",   value: fmt(mPaid + grPaid), sub: `${paidCount} fulfilled`,   accent: MUTED_GRN },
+                { label: "Total Paid",   value: fmt(mPaid + grPaid + aPaid), sub: `${paidCount} fulfilled`,   accent: MUTED_GRN },
                 { label: "Remaining",    value: fmt(mRem),           sub: `of ${fmt(mDue)}`,          accent: WARM_GRAY },
                 { label: "Past Due",     value: String(pastDueCount),sub: "require attention",        accent: pastDueCount > 0 ? MUTED_RED : WARM_GRAY },
               ].map(c => (
@@ -396,6 +403,7 @@ export default function DashboardPage() {
 
             {/* ── Section: Expenses ─────────────────────────────────────── */}
             <SectionBlock
+              id="section-expenses"
               label="EXPENSES"
               accent={OBSIDIAN}
               open={openMonthly}
@@ -456,6 +464,7 @@ export default function DashboardPage() {
 
             {/* ── Section: Gracefully Redefined ─────────────────────────── */}
             <SectionBlock
+              id="section-gr"
               label="GRACEFULLY REDEFINED"
               accent={GR_BEIGE}
               open={openGR}
@@ -475,6 +484,7 @@ export default function DashboardPage() {
 
             {/* ── Section: Annual ───────────────────────────────────────── */}
             <SectionBlock
+              id="section-annual"
               label="ANNUAL EXPENSES"
               accent="#8A8078"
               open={openAnnual}
@@ -494,6 +504,7 @@ export default function DashboardPage() {
 
             {/* ── Section: Outstanding Obligations ─────────────────────── */}
             <SectionBlock
+              id="section-liens"
               label="OUTSTANDING OBLIGATIONS"
               accent={MUTED_RED}
               open={openLiens}
@@ -515,51 +526,135 @@ export default function DashboardPage() {
 
         {/* ── INCOME TAB ────────────────────────────────────────────────── */}
         {activeTab === "income" && (
-          <SectionBlock
-            label="INCOME"
-            accent={MUTED_GRN}
-            open={openIncome}
-            onToggle={() => setOpenIncome(!openIncome)}
-            chevron={chevron}
-            sub={`${income.length} sources · Expected ${fmt(iExp)} · Received ${fmt(iRec)} · Net ${fmt(netBalance)}`}
-            action={openIncome ? (
-              <button onClick={() => setShowAddIncome(!showAddIncome)}
-                className="text-xs tracking-widest px-4 py-2 transition-all"
-                style={{ background: showAddIncome ? IVORY : OBSIDIAN, color: showAddIncome ? MUTED_RED : "#fff", border: `1px solid ${showAddIncome ? BORDER : OBSIDIAN}`, letterSpacing: "0.12em" }}>
-                {showAddIncome ? "CANCEL" : "+ ADD INCOME"}
-              </button>
-            ) : null}>
-            {showAddIncome && (
-              <form onSubmit={handleAddIncome}
-                className="mb-6 p-6 grid grid-cols-2 md:grid-cols-5 gap-4"
-                style={{ background: IVORY, border: `1px solid ${BORDER}` }}>
-                {[
-                  { label: "Description",       key: "description", type: "text",   placeholder: "e.g. Paycheck" },
-                  { label: "Expected Amount",    key: "amount",      type: "number", placeholder: "0.00" },
-                  { label: "Amount Received",    key: "amountPaid",  type: "number", placeholder: "0.00" },
-                  { label: "Category",           key: "category",    type: "text",   placeholder: "Income" },
-                  { label: "Date",               key: "dueDate",     type: "date",   placeholder: "" },
-                ].map(f => (
-                  <div key={f.key}>
-                    <label className="block text-xs mb-1.5" style={{ color: WARM_GRAY, letterSpacing: "0.12em" }}>{f.label.toUpperCase()}</label>
-                    <input type={f.type} value={(addIncomeForm as any)[f.key]} placeholder={f.placeholder}
-                      onChange={e => setAddIncomeForm({ ...addIncomeForm, [f.key]: e.target.value })}
-                      className={inp} style={inpStyle} />
-                  </div>
-                ))}
-                <div className="col-span-2 md:col-span-5 flex items-center gap-4">
-                  {addIncomeError && <p className="text-xs" style={{ color: MUTED_RED }}>{addIncomeError}</p>}
-                  <button type="submit" className="px-6 py-2.5 text-xs tracking-widest"
-                    style={{ background: OBSIDIAN, color: "#fff", letterSpacing: "0.14em" }}>ADD INCOME</button>
+          <div className="py-2">
+            {/* Summary strip */}
+            <div className="flex gap-0 mb-8" style={{ border: `1px solid ${BORDER}` }}>
+              {[
+                { label: "SOURCES",   value: String(income.length) },
+                { label: "EXPECTED",  value: fmt(iExp) },
+                { label: "RECEIVED",  value: fmt(iRec) },
+                { label: "VARIANCE",  value: fmt(iRec - iExp), neg: iRec < iExp },
+              ].map((s, i, arr) => (
+                <div key={s.label} className="flex-1 px-6 py-4" style={{ borderRight: i < arr.length - 1 ? `1px solid ${BORDER}` : "none" }}>
+                  <p className="text-xs mb-1" style={{ color: WARM_GRAY, letterSpacing: "0.16em" }}>{s.label}</p>
+                  <p className="text-lg font-light tabular-nums" style={{ color: s.neg ? MUTED_RED : OBSIDIAN }}>{s.value}</p>
                 </div>
-              </form>
-            )}
-            {!loading && (
-              <ExpenseTable expenses={income} onUpdate={handleUpdate} onDelete={handleDelete}
-                onMoveUp={id => handleMove(income, id, "up")} onMoveDown={id => handleMove(income, id, "down")}
-                headerColor={OBSIDIAN} />
-            )}
-          </SectionBlock>
+              ))}
+            </div>
+
+            {/* Income entries */}
+            <div style={{ border: `1px solid ${BORDER}` }}>
+              {/* Header */}
+              <div className="grid px-6 py-2" style={{ gridTemplateColumns: "1fr 140px 120px 120px 100px 80px", background: OBSIDIAN, borderBottom: `1px solid ${BORDER}` }}>
+                {["SOURCE", "CATEGORY", "DATE", "EXPECTED", "RECEIVED", "DIFF"].map((h, i) => (
+                  <p key={h} className="text-xs" style={{ color: "rgba(255,255,255,0.5)", letterSpacing: "0.14em", textAlign: i >= 3 ? "right" : "left" }}>{h}</p>
+                ))}
+              </div>
+              {loading && <p className="px-6 py-8 text-xs text-center" style={{ color: "#C8C4BF", letterSpacing: "0.2em" }}>LOADING…</p>}
+              {!loading && income.length === 0 && (
+                <p className="px-6 py-8 text-xs text-center" style={{ color: "#C8C4BF", letterSpacing: "0.2em" }}>NO INCOME RECORDED</p>
+              )}
+              {!loading && income.map((e, i) => {
+                const diff = e.amountPaid - e.amount;
+                return (
+                  <div key={e.id} className="grid px-6 py-4 items-center" style={{ gridTemplateColumns: "1fr 140px 120px 120px 100px 80px", borderBottom: i < income.length - 1 ? `1px solid ${BORDER}` : "none", background: i % 2 === 0 ? SURFACE : IVORY }}>
+                    <p className="text-sm font-light" style={{ color: OBSIDIAN }}>{e.description}</p>
+                    <p className="text-xs" style={{ color: WARM_GRAY }}>{e.category}</p>
+                    <p className="text-xs font-mono" style={{ color: WARM_GRAY }}>
+                      {new Date(e.dueDate).toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric", timeZone: "UTC" })}
+                    </p>
+                    <p className="text-xs font-mono text-right" style={{ color: WARM_GRAY }}>{fmt(e.amount)}</p>
+                    <p className="text-xs font-mono text-right" style={{ color: e.amountPaid > 0 ? MUTED_GRN : "#C8C4BF" }}>{fmt(e.amountPaid)}</p>
+                    <p className="text-xs font-mono text-right" style={{ color: diff > 0 ? MUTED_GRN : diff < 0 ? MUTED_RED : "#C8C4BF" }}>
+                      {diff !== 0 ? (diff > 0 ? "+" : "") + fmt(diff) : "—"}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Add income form */}
+            <div className="mt-6">
+              <button onClick={() => setShowAddIncome(!showAddIncome)}
+                className="text-xs tracking-widest px-5 py-2.5"
+                style={{ background: showAddIncome ? IVORY : OBSIDIAN, color: showAddIncome ? MUTED_RED : "#fff", border: `1px solid ${showAddIncome ? BORDER : OBSIDIAN}`, letterSpacing: "0.14em" }}>
+                {showAddIncome ? "CANCEL" : "+ ADD INCOME SOURCE"}
+              </button>
+              {showAddIncome && (
+                <form onSubmit={handleAddIncome}
+                  className="mt-4 p-6 grid grid-cols-2 md:grid-cols-5 gap-4"
+                  style={{ background: IVORY, border: `1px solid ${BORDER}` }}>
+                  {[
+                    { label: "Source",          key: "description", type: "text",   placeholder: "e.g. Paycheck" },
+                    { label: "Expected Amount", key: "amount",      type: "number", placeholder: "0.00" },
+                    { label: "Amount Received", key: "amountPaid",  type: "number", placeholder: "0.00" },
+                    { label: "Category",        key: "category",    type: "text",   placeholder: "Income" },
+                    { label: "Date",            key: "dueDate",     type: "date",   placeholder: "" },
+                  ].map(f => (
+                    <div key={f.key}>
+                      <label className="block text-xs mb-1.5" style={{ color: WARM_GRAY, letterSpacing: "0.12em" }}>{f.label.toUpperCase()}</label>
+                      <input type={f.type} value={(addIncomeForm as any)[f.key]} placeholder={f.placeholder}
+                        onChange={e => setAddIncomeForm({ ...addIncomeForm, [f.key]: e.target.value })}
+                        className={inp} style={inpStyle} />
+                    </div>
+                  ))}
+                  <div className="col-span-2 md:col-span-5 flex items-center gap-4">
+                    {addIncomeError && <p className="text-xs" style={{ color: MUTED_RED }}>{addIncomeError}</p>}
+                    <button type="submit" className="px-6 py-2.5 text-xs tracking-widest"
+                      style={{ background: OBSIDIAN, color: "#fff", letterSpacing: "0.14em" }}>ADD</button>
+                  </div>
+                </form>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── PAID TAB ──────────────────────────────────────────────────── */}
+        {activeTab === "paid" && (
+          <div className="py-2">
+            <div className="mb-8">
+              <p className="text-xs mb-6" style={{ color: WARM_GRAY, letterSpacing: "0.2em" }}>PAYMENTS FULFILLED — {fmtMonth(monthKey).toUpperCase()}</p>
+              <div style={{ border: `1px solid ${BORDER}` }}>
+                {[
+                  { label: "Expenses",               paid: mPaid,  due: mDue,  accent: OBSIDIAN,  sectionId: "section-expenses", openFn: () => setOpenMonthly(true) },
+                  { label: "Gracefully Redefined",   paid: grPaid, due: grDue, accent: GR_BEIGE,  sectionId: "section-gr",       openFn: () => setOpenGR(true) },
+                  { label: "Annual Expenses",        paid: aPaid,  due: aDue,  accent: WARM_GRAY, sectionId: "section-annual",   openFn: () => setOpenAnnual(true) },
+                  { label: "Outstanding Obligations",paid: lPaid,  due: lDue,  accent: MUTED_RED, sectionId: "section-liens",    openFn: () => setOpenLiens(true) },
+                ].map((row, i, arr) => {
+                  const pct = row.due > 0 ? (row.paid / row.due) * 100 : 0;
+                  return (
+                    <div key={row.label} style={{ borderBottom: i < arr.length - 1 ? `1px solid ${BORDER}` : "none" }}>
+                      <div className="px-6 py-5 flex items-center justify-between gap-6">
+                        <div className="flex items-center gap-3 min-w-[220px]">
+                          <div className="w-0.5 h-4 shrink-0" style={{ background: row.accent }} />
+                          <button
+                            onClick={() => jumpToSection(row.sectionId, row.openFn)}
+                            className="text-xs hover:opacity-60 transition-opacity text-left"
+                            style={{ color: OBSIDIAN, letterSpacing: "0.14em", textDecoration: "underline", textUnderlineOffset: "3px", textDecorationColor: row.accent }}>
+                            {row.label.toUpperCase()}
+                          </button>
+                        </div>
+                        <div className="flex-1 mx-6">
+                          <div className="h-px w-full" style={{ background: BORDER }}>
+                            <div className="h-px transition-all duration-700" style={{ width: `${Math.min(pct, 100)}%`, background: row.accent }} />
+                          </div>
+                        </div>
+                        <div className="flex items-baseline gap-3 shrink-0">
+                          <span className="text-base font-light tabular-nums" style={{ color: row.accent }}>{fmt(row.paid)}</span>
+                          <span className="text-xs" style={{ color: "#C8C4BF" }}>of {fmt(row.due)}</span>
+                          <span className="text-xs tabular-nums w-10 text-right" style={{ color: pct >= 100 ? MUTED_GRN : WARM_GRAY }}>{Math.round(pct)}%</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="mt-6 px-6 py-4 flex items-center justify-between" style={{ background: OBSIDIAN }}>
+                <span className="text-xs tracking-widest" style={{ color: GOLD, letterSpacing: "0.2em" }}>TOTAL PAID</span>
+                <span className="text-xl font-light tabular-nums" style={{ color: "#fff" }}>{fmt(mPaid + grPaid + aPaid + lPaid)}</span>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>
@@ -568,13 +663,13 @@ export default function DashboardPage() {
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
-function SectionBlock({ label, accent, open, onToggle, chevron, children, action, sub }: {
+function SectionBlock({ label, accent, open, onToggle, chevron, children, action, sub, id }: {
   label: string; accent: string; open: boolean; onToggle: () => void;
   chevron: (o: boolean) => React.ReactNode; children?: React.ReactNode;
-  action?: React.ReactNode; sub?: string;
+  action?: React.ReactNode; sub?: string; id?: string;
 }) {
   return (
-    <div className="mb-8">
+    <div id={id} className="mb-8">
       <div className="flex items-center justify-between py-3 mb-4" style={{ borderBottom: `1px solid #E8E3DC` }}>
         <button onClick={onToggle} className="flex items-center gap-3 hover:opacity-70 transition-opacity text-left">
           <div className="w-0.5 h-4" style={{ background: accent }} />
@@ -592,7 +687,7 @@ function SectionBlock({ label, accent, open, onToggle, chevron, children, action
 }
 
 function MiniStats({ items }: { items: { label: string; value: string; positive?: boolean; negative?: boolean }[] }) {
-  const OBSIDIAN = "#111111", GOLD = "#B8976A", MUTED_GRN = "#2A6B4A", MUTED_RED = "#8B2020", BORDER = "#E8E3DC", WARM_GRAY = "#6B6460";
+  const OBSIDIAN = "#111111", MUTED_GRN = "#2A6B4A", MUTED_RED = "#8B2020", BORDER = "#E8E3DC", WARM_GRAY = "#6B6460";
   return (
     <div className="flex gap-0 mb-4" style={{ border: `1px solid ${BORDER}` }}>
       {items.map((s, i) => (
