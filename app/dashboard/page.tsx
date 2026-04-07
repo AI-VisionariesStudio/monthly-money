@@ -63,12 +63,16 @@ export default function DashboardPage() {
   const [addError, setAddError]           = useState<string | null>(null);
   const [addIncomeError, setAddIncomeError] = useState<string | null>(null);
   const [activeTab, setActiveTab]         = useState<"overview" | "income" | "paid">("overview");
-  const [now, setNow] = useState(() => new Date());
+  const [now, setNow] = useState<Date | null>(null);
   useEffect(() => {
+    setNow(new Date());
     const t = setInterval(() => setNow(new Date()), 60000);
     return () => clearInterval(t);
   }, []);
   const [openMonthly, setOpenMonthly] = useState(false);
+  const [incomeInlineId,    setIncomeInlineId]    = useState<string | null>(null);
+  const [incomeInlineField, setIncomeInlineField] = useState<string | null>(null);
+  const [incomeInlineValue, setIncomeInlineValue] = useState("");
   const [openAnnual,  setOpenAnnual]  = useState(false);
   const [openLiens,   setOpenLiens]   = useState(false);
   const [openGR,      setOpenGR]      = useState(false);
@@ -267,17 +271,19 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs tracking-widest mb-1" style={{ color: GOLD, letterSpacing: "0.2em" }}>ESTATE MANAGEMENT</p>
-              <h1 className="text-3xl font-light text-white tracking-wide">{fmtMonth(monthKey)}</h1>
+              <h1 className="text-lg font-light text-white tracking-wide">{fmtMonth(monthKey)}</h1>
             </div>
             <div className="flex flex-col items-end gap-4">
-              <div className="text-right">
-                <p className="text-xs tracking-widest" style={{ color: "rgba(255,255,255,0.45)", letterSpacing: "0.12em" }}>
-                  {fmtEasternTime(now).weekday.toUpperCase()}, {fmtEasternTime(now).date.toUpperCase()}
-                </p>
-                <p className="text-sm font-light tabular-nums mt-0.5" style={{ color: "rgba(255,255,255,0.85)" }}>
-                  {fmtEasternTime(now).time} <span className="text-xs" style={{ color: GOLD }}>ET</span>
-                </p>
-              </div>
+              {now && (
+                <div className="text-right">
+                  <p className="text-xs tracking-widest" style={{ color: "rgba(255,255,255,0.45)", letterSpacing: "0.12em" }}>
+                    {fmtEasternTime(now).weekday.toUpperCase()}, {fmtEasternTime(now).date.toUpperCase()}
+                  </p>
+                  <p className="text-sm font-light tabular-nums mt-0.5" style={{ color: "rgba(255,255,255,0.85)" }}>
+                    {fmtEasternTime(now).time} <span className="text-xs" style={{ color: GOLD }}>ET</span>
+                  </p>
+                </div>
+              )}
               <div className="flex items-center gap-3">
                 <button onClick={() => router.push(`/monthly/${monthKey}`)}
                   className="px-5 py-2 text-xs tracking-widest transition-all"
@@ -545,9 +551,9 @@ export default function DashboardPage() {
             {/* Income entries */}
             <div style={{ border: `1px solid ${BORDER}` }}>
               {/* Header */}
-              <div className="grid px-6 py-2" style={{ gridTemplateColumns: "1fr 140px 120px 120px 100px 80px", background: OBSIDIAN, borderBottom: `1px solid ${BORDER}` }}>
-                {["SOURCE", "CATEGORY", "DATE", "EXPECTED", "RECEIVED", "DIFF"].map((h, i) => (
-                  <p key={h} className="text-xs" style={{ color: "rgba(255,255,255,0.5)", letterSpacing: "0.14em", textAlign: i >= 3 ? "right" : "left" }}>{h}</p>
+              <div className="grid px-6 py-2" style={{ gridTemplateColumns: "1fr 140px 120px 120px 110px 80px 60px", background: OBSIDIAN, borderBottom: `1px solid ${BORDER}` }}>
+                {["SOURCE", "CATEGORY", "DATE", "EXPECTED", "RECEIVED", "DIFF", ""].map((h, i) => (
+                  <p key={i} className="text-xs" style={{ color: "rgba(255,255,255,0.5)", letterSpacing: "0.14em", textAlign: i >= 3 && i <= 5 ? "right" : "left" }}>{h}</p>
                 ))}
               </div>
               {loading && <p className="px-6 py-8 text-xs text-center" style={{ color: "#C8C4BF", letterSpacing: "0.2em" }}>LOADING…</p>}
@@ -556,18 +562,82 @@ export default function DashboardPage() {
               )}
               {!loading && income.map((e, i) => {
                 const diff = e.amountPaid - e.amount;
+                const isRow = incomeInlineId === e.id;
+                function startEdit(field: string, val: string) { setIncomeInlineId(e.id); setIncomeInlineField(field); setIncomeInlineValue(val); }
+                async function commitEdit() {
+                  if (!incomeInlineId || !incomeInlineField) return;
+                  let update: Partial<Expense> = {};
+                  if (incomeInlineField === "description" && incomeInlineValue.trim()) update = { description: incomeInlineValue.trim() };
+                  else if (incomeInlineField === "category" && incomeInlineValue.trim()) update = { category: incomeInlineValue.trim() };
+                  else if (incomeInlineField === "dueDate" && incomeInlineValue) update = { dueDate: incomeInlineValue };
+                  else if (incomeInlineField === "amount") { const v = parseFloat(incomeInlineValue); if (!isNaN(v)) update = { amount: v }; }
+                  else if (incomeInlineField === "amountPaid") { const v = parseFloat(incomeInlineValue); if (!isNaN(v)) update = { amountPaid: v }; }
+                  if (Object.keys(update).length) await handleUpdate(e.id, update);
+                  setIncomeInlineId(null); setIncomeInlineField(null);
+                }
+                function cancelEdit() { setIncomeInlineId(null); setIncomeInlineField(null); }
+                const cellBase = "px-6 py-3.5 flex items-center cursor-pointer hover:opacity-70";
+                const inpCls = "w-full text-xs focus:outline-none bg-transparent border-b";
+                const inpSt = { borderColor: GOLD, color: OBSIDIAN };
                 return (
-                  <div key={e.id} className="grid px-6 py-4 items-center" style={{ gridTemplateColumns: "1fr 140px 120px 120px 100px 80px", borderBottom: i < income.length - 1 ? `1px solid ${BORDER}` : "none", background: i % 2 === 0 ? SURFACE : IVORY }}>
-                    <p className="text-sm font-light" style={{ color: OBSIDIAN }}>{e.description}</p>
-                    <p className="text-xs" style={{ color: WARM_GRAY }}>{e.category}</p>
-                    <p className="text-xs font-mono" style={{ color: WARM_GRAY }}>
-                      {new Date(e.dueDate).toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric", timeZone: "UTC" })}
-                    </p>
-                    <p className="text-xs font-mono text-right" style={{ color: WARM_GRAY }}>{fmt(e.amount)}</p>
-                    <p className="text-xs font-mono text-right" style={{ color: e.amountPaid > 0 ? MUTED_GRN : "#C8C4BF" }}>{fmt(e.amountPaid)}</p>
-                    <p className="text-xs font-mono text-right" style={{ color: diff > 0 ? MUTED_GRN : diff < 0 ? MUTED_RED : "#C8C4BF" }}>
-                      {diff !== 0 ? (diff > 0 ? "+" : "") + fmt(diff) : "—"}
-                    </p>
+                  <div key={e.id} className="grid items-center" style={{ gridTemplateColumns: "1fr 140px 120px 120px 110px 80px 60px", borderBottom: i < income.length - 1 ? `1px solid ${BORDER}` : "none", background: i % 2 === 0 ? SURFACE : IVORY }}>
+
+                    {/* Source */}
+                    <div className={cellBase} style={{ borderRight: `1px solid ${BORDER}` }} onClick={() => !isRow && startEdit("description", e.description)}>
+                      {isRow && incomeInlineField === "description"
+                        ? <input autoFocus className={inpCls} style={inpSt} value={incomeInlineValue}
+                            onChange={ev => setIncomeInlineValue(ev.target.value)}
+                            onBlur={commitEdit} onKeyDown={ev => { if (ev.key === "Enter") commitEdit(); if (ev.key === "Escape") cancelEdit(); }} />
+                        : <span className="text-xs font-light" style={{ color: OBSIDIAN }}>{e.description}</span>}
+                    </div>
+
+                    {/* Category */}
+                    <div className={cellBase} style={{ borderRight: `1px solid ${BORDER}` }} onClick={() => !isRow && startEdit("category", e.category)}>
+                      {isRow && incomeInlineField === "category"
+                        ? <input autoFocus className={inpCls} style={inpSt} value={incomeInlineValue}
+                            onChange={ev => setIncomeInlineValue(ev.target.value)}
+                            onBlur={commitEdit} onKeyDown={ev => { if (ev.key === "Enter") commitEdit(); if (ev.key === "Escape") cancelEdit(); }} />
+                        : <span className="text-xs" style={{ color: WARM_GRAY }}>{e.category}</span>}
+                    </div>
+
+                    {/* Date */}
+                    <div className={cellBase} style={{ borderRight: `1px solid ${BORDER}` }} onClick={() => !isRow && startEdit("dueDate", new Date(e.dueDate).toISOString().split("T")[0])}>
+                      {isRow && incomeInlineField === "dueDate"
+                        ? <input autoFocus type="date" className={inpCls} style={inpSt} value={incomeInlineValue}
+                            onChange={ev => setIncomeInlineValue(ev.target.value)}
+                            onBlur={commitEdit} onKeyDown={ev => { if (ev.key === "Enter") commitEdit(); if (ev.key === "Escape") cancelEdit(); }} />
+                        : <span className="text-xs font-mono" style={{ color: WARM_GRAY }}>{new Date(e.dueDate).toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric", timeZone: "UTC" })}</span>}
+                    </div>
+
+                    {/* Expected */}
+                    <div className={`${cellBase} justify-end`} style={{ borderRight: `1px solid ${BORDER}` }} onClick={() => !isRow && startEdit("amount", String(e.amount))}>
+                      {isRow && incomeInlineField === "amount"
+                        ? <input autoFocus type="number" step="0.01" className={`${inpCls} text-right`} style={inpSt} value={incomeInlineValue}
+                            onChange={ev => setIncomeInlineValue(ev.target.value)}
+                            onBlur={commitEdit} onKeyDown={ev => { if (ev.key === "Enter") commitEdit(); if (ev.key === "Escape") cancelEdit(); }} />
+                        : <span className="text-xs font-mono" style={{ color: WARM_GRAY }}>{fmt(e.amount)}</span>}
+                    </div>
+
+                    {/* Received */}
+                    <div className={`${cellBase} justify-end`} style={{ borderRight: `1px solid ${BORDER}` }} onClick={() => !isRow && startEdit("amountPaid", String(e.amountPaid))}>
+                      {isRow && incomeInlineField === "amountPaid"
+                        ? <input autoFocus type="number" step="0.01" className={`${inpCls} text-right`} style={inpSt} value={incomeInlineValue}
+                            onChange={ev => setIncomeInlineValue(ev.target.value)}
+                            onBlur={commitEdit} onKeyDown={ev => { if (ev.key === "Enter") commitEdit(); if (ev.key === "Escape") cancelEdit(); }} />
+                        : <span className="text-xs font-mono" style={{ color: e.amountPaid > 0 ? MUTED_GRN : "#C8C4BF" }}>{fmt(e.amountPaid)}</span>}
+                    </div>
+
+                    {/* Diff — read only */}
+                    <div className="px-6 py-3.5 flex items-center justify-end" style={{ borderRight: `1px solid ${BORDER}` }}>
+                      <span className="text-xs font-mono" style={{ color: diff > 0 ? MUTED_GRN : diff < 0 ? MUTED_RED : "#C8C4BF" }}>
+                        {diff !== 0 ? (diff > 0 ? "+" : "") + fmt(diff) : "—"}
+                      </span>
+                    </div>
+
+                    {/* Delete */}
+                    <div className="px-3 py-3.5 flex items-center justify-center">
+                      <button onClick={() => handleDelete(e.id)} className="text-xs" style={{ color: MUTED_RED, letterSpacing: "0.06em" }}>Del</button>
+                    </div>
                   </div>
                 );
               })}
