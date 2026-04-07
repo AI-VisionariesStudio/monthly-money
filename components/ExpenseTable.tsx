@@ -30,6 +30,7 @@ interface ExpenseTableProps {
   onMoveUp?: (id: string) => void;
   onMoveDown?: (id: string) => void;
   headerColor?: string;
+  headerTextColor?: string;
 }
 
 function fmt(v: number) {
@@ -302,7 +303,7 @@ function MobileCard({ expense, onEdit, onDelete, onUpdate }: {
 }
 
 // ─── Main Table ───────────────────────────────────────────────────────────────
-export function ExpenseTable({ expenses, onUpdate, onDelete, onMoveUp, onMoveDown, headerColor = "#0d2b4e" }: ExpenseTableProps) {
+export function ExpenseTable({ expenses, onUpdate, onDelete, onMoveUp, onMoveDown, headerColor = "#0d2b4e", headerTextColor }: ExpenseTableProps) {
   const [editingRow, setEditingRow]     = useState<Expense | null>(null);
   const [inlineId, setInlineId]         = useState<string | null>(null);
   const [inlineField, setInlineField]   = useState<string | null>(null);
@@ -405,7 +406,7 @@ export function ExpenseTable({ expenses, onUpdate, onDelete, onMoveUp, onMoveDow
               <tr style={{ background: headerColor }}>
                 {["Expense", "Category", "Due Date", "Amount Due", "Amount Paid", "Remaining", "Status", "Notes", ""].map((h, i) => (
                   <th key={i} className="px-3 py-2.5"
-                    style={{ color: "rgba(200,216,234,0.9)", borderRight: "1px solid rgba(255,255,255,0.07)", textAlign: i >= 3 && i <= 5 ? "right" : "left", fontSize: 10, letterSpacing: "0.09em" }}>
+                    style={{ color: headerTextColor ?? "rgba(200,216,234,0.9)", borderRight: "1px solid rgba(255,255,255,0.07)", textAlign: i >= 3 && i <= 5 ? "right" : "left", fontSize: 10, letterSpacing: "0.09em" }}>
                     {h}
                   </th>
                 ))}
@@ -582,12 +583,12 @@ export function ExpenseTable({ expenses, onUpdate, onDelete, onMoveUp, onMoveDow
               <tfoot>
                 <tr style={{ background: headerColor, borderTop: "2px solid rgba(255,255,255,0.15)" }}>
                   <td className="px-4 py-3 text-xs font-bold uppercase tracking-wider" colSpan={3}
-                    style={{ color: "#c8d8ea", borderRight: "1px solid rgba(255,255,255,0.08)" }}>
+                    style={{ color: headerTextColor ?? "#c8d8ea", borderRight: "1px solid rgba(255,255,255,0.08)" }}>
                     Totals — {filtered.length} item{filtered.length !== 1 ? "s" : ""}
                   </td>
-                  <td className="px-4 py-3 text-right font-mono font-bold text-white" style={{ borderRight: "1px solid rgba(255,255,255,0.08)" }}>{fmt(totalAmount)}</td>
-                  <td className="px-4 py-3 text-right font-mono font-bold" style={{ color: "#86efac", borderRight: "1px solid rgba(255,255,255,0.08)" }}>{fmt(totalPaid)}</td>
-                  <td className="px-4 py-3 text-right font-mono font-bold text-white" style={{ borderRight: "1px solid rgba(255,255,255,0.08)" }}>{fmt(totalRemaining)}</td>
+                  <td className="px-4 py-3 text-right font-mono font-bold" style={{ color: headerTextColor ?? "#ffffff", borderRight: "1px solid rgba(255,255,255,0.08)" }}>{fmt(totalAmount)}</td>
+                  <td className="px-4 py-3 text-right font-mono font-bold" style={{ color: headerTextColor ? "#15803d" : "#86efac", borderRight: "1px solid rgba(255,255,255,0.08)" }}>{fmt(totalPaid)}</td>
+                  <td className="px-4 py-3 text-right font-mono font-bold" style={{ color: headerTextColor ?? "#ffffff", borderRight: "1px solid rgba(255,255,255,0.08)" }}>{fmt(totalRemaining)}</td>
                   <td colSpan={3} />
                 </tr>
               </tfoot>

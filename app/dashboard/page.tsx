@@ -54,6 +54,7 @@ export default function DashboardPage() {
   const [openAnnual,  setOpenAnnual]      = useState(false);
   const [openLiens,   setOpenLiens]       = useState(false);
   const [openIncome,  setOpenIncome]      = useState(false);
+  const [openGR,      setOpenGR]          = useState(false);
 
   const fetchExpenses = useCallback(async () => {
     setLoading(true);
@@ -159,25 +160,38 @@ export default function DashboardPage() {
   }
 
   // ── Split expenses ─────────────────────────────────────────────────────────
-  const monthly = expenses.filter(e => e.frequency === "monthly");
-  const annual  = expenses.filter(e => e.frequency === "annual");
-  const liens   = expenses.filter(e => e.frequency === "lien");
-  const income  = expenses.filter(e => e.frequency === "income");
+  const monthly   = expenses.filter(e => e.frequency === "monthly"  && e.category !== "GR Business");
+  const annual    = expenses.filter(e => e.frequency === "annual"   && e.category !== "GR Business");
+  const liens     = expenses.filter(e => e.frequency === "lien");
+  const income    = expenses.filter(e => e.frequency === "income");
+  const grBusiness = expenses.filter(e => e.category === "GR Business");
 
   // ── Stats ──────────────────────────────────────────────────────────────────
-  const mDue  = monthly.reduce((s, e) => s + e.amount, 0);
-  const mPaid = monthly.reduce((s, e) => s + e.amountPaid, 0);
-  const mRem  = monthly.reduce((s, e) => s + Math.max(0, e.amount - e.amountPaid), 0);
-  const aDue  = annual.reduce((s, e) => s + e.amount, 0);
-  const aPaid = annual.reduce((s, e) => s + e.amountPaid, 0);
-  const aRem  = annual.reduce((s, e) => s + Math.max(0, e.amount - e.amountPaid), 0);
-  const lDue  = liens.reduce((s, e) => s + e.amount, 0);
-  const lPaid = liens.reduce((s, e) => s + e.amountPaid, 0);
-  const lRem  = liens.reduce((s, e) => s + Math.max(0, e.amount - e.amountPaid), 0);
-  const iExp  = income.reduce((s, e) => s + e.amount, 0);
-  const iRec  = income.reduce((s, e) => s + e.amountPaid, 0);
+  function effectivePaid(e: Expense) {
+    if (e.amountPaid > 0) return e.amountPaid;
+    const st = computeStatus({ status: e.status, paymentDate: e.paymentDate, dueDate: e.dueDate, amountPaid: e.amountPaid, amount: e.amount });
+    return st === "Paid" ? e.amount : 0;
+  }
+  function effectiveRemaining(e: Expense) {
+    return Math.max(0, e.amount - effectivePaid(e));
+  }
 
-  const totalRem   = mRem + aRem + lRem;
+  const mDue  = monthly.reduce((s, e) => s + e.amount, 0);
+  const mPaid = monthly.reduce((s, e) => s + effectivePaid(e), 0);
+  const mRem  = monthly.reduce((s, e) => s + effectiveRemaining(e), 0);
+  const aDue  = annual.reduce((s, e) => s + e.amount, 0);
+  const aPaid = annual.reduce((s, e) => s + effectivePaid(e), 0);
+  const aRem  = annual.reduce((s, e) => s + effectiveRemaining(e), 0);
+  const lDue  = liens.reduce((s, e) => s + e.amount, 0);
+  const lPaid = liens.reduce((s, e) => s + effectivePaid(e), 0);
+  const lRem  = liens.reduce((s, e) => s + effectiveRemaining(e), 0);
+  const grDue  = grBusiness.reduce((s, e) => s + e.amount, 0);
+  const grPaid = grBusiness.reduce((s, e) => s + effectivePaid(e), 0);
+  const grRem  = grBusiness.reduce((s, e) => s + effectiveRemaining(e), 0);
+  const iExp  = income.reduce((s, e) => s + e.amount, 0);
+  const iRec  = income.reduce((s, e) => s + effectivePaid(e), 0);
+
+  const totalRem   = mRem + aRem + lRem + grRem;
   const netBalance = iRec - totalRem;
 
   const nonIncomeExpenses = expenses.filter(e => e.frequency !== "income");
@@ -192,7 +206,7 @@ export default function DashboardPage() {
 
   const monthlyCards: StatCard[] = [
     { label: "Monthly Due",  value: fmt(mDue),            sub: `${monthly.length} items`, accent: NAVY },
-    { label: "Paid",         value: fmt(mPaid),           sub: `${paidCount} paid`,       accent: "#16a34a" },
+    { label: "Paid",         value: fmt(mPaid + grPaid),  sub: `${paidCount} paid`,       accent: "#16a34a" },
     { label: "Remaining",    value: fmt(mRem),            sub: `of ${fmt(mDue)}`,         accent: "#dc2626" },
     { label: "Past Due",     value: String(pastDueCount), sub: `need attention`,          accent: "#b91c1c" },
   ];
@@ -228,10 +242,10 @@ export default function DashboardPage() {
           </div>
           <div className="mt-4 h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.15)" }}>
             <div className="h-full rounded-full transition-all duration-700"
-              style={{ width: `${mDue > 0 ? (mPaid / mDue) * 100 : 0}%`, background: "linear-gradient(90deg, #34d399, #10b981)" }} />
+              style={{ width: `${(mDue + grDue) > 0 ? ((mPaid + grPaid) / (mDue + grDue)) * 100 : 0}%`, background: "linear-gradient(90deg, #34d399, #10b981)" }} />
           </div>
           <p className="text-xs mt-1.5" style={{ color: "rgba(255,255,255,0.45)" }}>
-            {fmt(mPaid)} paid of {fmt(mDue)} monthly expenses
+            {fmt(mPaid + grPaid)} paid of {fmt(mDue + grDue)} monthly expenses
           </p>
         </div>
       </div>
@@ -240,11 +254,11 @@ export default function DashboardPage() {
       <div className="sticky top-0 z-20 border-b" style={{ background: "#8C8279", borderColor: "#7a7068" }}>
         <div className="max-w-screen-2xl mx-auto px-6 py-2 flex items-center gap-6 text-sm">
           <span style={{ color: "rgba(255,255,255,0.65)", letterSpacing: "0.06em", fontSize: 11 }}>MONTHLY EXPENSES</span>
-          <span style={{ color: "rgba(255,255,255,0.55)" }}>Due <strong style={{ color: "#fff" }}>{fmt(mDue)}</strong></span>
+          <span style={{ color: "rgba(255,255,255,0.55)" }}>Due <strong style={{ color: "#fff" }}>{fmt(mDue + grDue)}</strong></span>
           <span style={{ color: "rgba(255,255,255,0.3)" }}>·</span>
-          <span style={{ color: "rgba(255,255,255,0.55)" }}>Paid <strong style={{ color: "#d4f0dd" }}>{fmt(mPaid)}</strong></span>
+          <span style={{ color: "rgba(255,255,255,0.55)" }}>Paid <strong style={{ color: "#d4f0dd" }}>{fmt(mPaid + grPaid)}</strong></span>
           <span style={{ color: "rgba(255,255,255,0.3)" }}>·</span>
-          <span style={{ color: "rgba(255,255,255,0.55)" }}>Remaining <strong style={{ color: "#ffd5d5" }}>{fmt(mRem)}</strong></span>
+          <span style={{ color: "rgba(255,255,255,0.55)" }}>Remaining <strong style={{ color: "#ffd5d5" }}>{fmt(mRem + grRem)}</strong></span>
         </div>
       </div>
 
@@ -304,13 +318,13 @@ export default function DashboardPage() {
               ))}
             </div>
 
-            {/* Monthly Expenses */}
+            {/* Expenses (Monthly) */}
             <div className="mb-6">
               <div className="flex items-center justify-between mb-3">
                 <button onClick={() => setOpenMonthly(!openMonthly)}
                   className="flex items-center gap-3 hover:opacity-75 transition-opacity">
                   <div className="w-1 h-5 rounded-full" style={{ background: NAVY }} />
-                  <h2 className="text-base font-bold" style={{ color: NAVY }}>Monthly Expenses</h2>
+                  <h2 className="text-base font-bold" style={{ color: NAVY }}>Expenses</h2>
                   {chevron(openMonthly)}
                 </button>
                 {openMonthly && (
@@ -369,6 +383,40 @@ export default function DashboardPage() {
                     <ExpenseTable expenses={monthly} onUpdate={handleUpdate} onDelete={handleDelete}
                       onMoveUp={id => handleMove(monthly, id, "up")} onMoveDown={id => handleMove(monthly, id, "down")}
                       headerColor={NAVY} />
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Gracefully Redefined */}
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-2">
+                <button onClick={() => setOpenGR(!openGR)}
+                  className="flex items-center gap-3 hover:opacity-75 transition-opacity">
+                  <div className="w-1 h-5 rounded-full" style={{ background: "#c4a882" }} />
+                  <h2 className="text-base font-bold" style={{ color: "#000000" }}>Gracefully Redefined</h2>
+                  {chevron(openGR)}
+                </button>
+              </div>
+              {openGR && (
+                <>
+                  <div className="grid grid-cols-3 gap-2 mb-3">
+                    {[
+                      { label: "Due",       value: fmt(grDue),  accent: "#8b6f4e" },
+                      { label: "Paid",      value: fmt(grPaid), accent: "#16a34a" },
+                      { label: "Remaining", value: fmt(grRem),  accent: "#dc2626" },
+                    ].map(s => (
+                      <div key={s.label} className="rounded-lg px-3 py-2"
+                        style={{ background: "#fff", border: "1px solid #e2e8f0", borderLeft: `3px solid ${s.accent}` }}>
+                        <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#94a3b8" }}>{s.label}</p>
+                        <p className="text-base font-bold tabular-nums mt-0.5" style={{ color: s.accent }}>{s.value}</p>
+                      </div>
+                    ))}
+                  </div>
+                  {!loading && (
+                    <ExpenseTable expenses={grBusiness} onUpdate={handleUpdate} onDelete={handleDelete}
+                      onMoveUp={id => handleMove(grBusiness, id, "up")} onMoveDown={id => handleMove(grBusiness, id, "down")}
+                      headerColor="#c4a882" headerTextColor="#000000" />
                   )}
                 </>
               )}
