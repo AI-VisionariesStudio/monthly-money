@@ -462,7 +462,7 @@ export default function DashboardPage() {
                 <button onClick={() => setOpenLiens(!openLiens)}
                   className="flex items-center gap-3 hover:opacity-75 transition-opacity">
                   <div className="w-1 h-5 rounded-full" style={{ background: "#7f1d1d" }} />
-                  <h2 className="text-base font-bold" style={{ color: "#7f1d1d" }}>Liens, Collections &amp; Defaulted Debt</h2>
+                  <h2 className="text-base font-bold" style={{ color: "#7f1d1d" }}>Outstanding Obligations</h2>
                   {chevron(openLiens)}
                 </button>
               </div>
