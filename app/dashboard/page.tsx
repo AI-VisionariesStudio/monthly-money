@@ -5,8 +5,16 @@ import { useRouter } from "next/navigation";
 import { ExpenseTable, type Expense } from "@/components/ExpenseTable";
 import { computeStatus } from "@/lib/status";
 
-const NAVY       = "#0d2b4e";
-const ANNUAL_HDR = "#1a3d6e";
+// ── Design tokens ──────────────────────────────────────────────────────────────
+const OBSIDIAN   = "#111111";
+const GOLD       = "#B8976A";
+const IVORY      = "#FAF9F6";
+const SURFACE    = "#FFFFFF";
+const BORDER     = "#E8E3DC";
+const WARM_GRAY  = "#6B6460";
+const MUTED_GRN  = "#2A6B4A";
+const MUTED_RED  = "#8B2020";
+const GR_BEIGE   = "#C4A882";
 
 function fmt(v: number) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(v);
@@ -35,8 +43,6 @@ function fmtMonth(mk: string) {
   return new Date(y, m - 1, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
 }
 
-interface StatCard { label: string; value: string; sub?: string; accent: string; }
-
 export default function DashboardPage() {
   const router = useRouter();
   const [monthKey] = useState(getCurrentMonthKey);
@@ -44,8 +50,8 @@ export default function DashboardPage() {
   const [loading, setLoading]   = useState(true);
   const [generating, setGenerating] = useState(false);
   const [genMsg, setGenMsg]     = useState<string | null>(null);
-  const [showAdd, setShowAdd]               = useState(false);
-  const [showAddIncome, setShowAddIncome]   = useState(false);
+  const [showAdd, setShowAdd]             = useState(false);
+  const [showAddIncome, setShowAddIncome] = useState(false);
   const [addForm, setAddForm] = useState({
     description: "", amount: "", category: "",
     dueDate: `${getCurrentMonthKey()}-01`, isRecurring: false, frequency: "monthly",
@@ -62,11 +68,11 @@ export default function DashboardPage() {
     const t = setInterval(() => setNow(new Date()), 60000);
     return () => clearInterval(t);
   }, []);
-  const [openMonthly, setOpenMonthly]     = useState(false);
-  const [openAnnual,  setOpenAnnual]      = useState(false);
-  const [openLiens,   setOpenLiens]       = useState(false);
-  const [openIncome,  setOpenIncome]      = useState(false);
-  const [openGR,      setOpenGR]          = useState(false);
+  const [openMonthly, setOpenMonthly] = useState(false);
+  const [openAnnual,  setOpenAnnual]  = useState(false);
+  const [openLiens,   setOpenLiens]   = useState(false);
+  const [openIncome,  setOpenIncome]  = useState(false);
+  const [openGR,      setOpenGR]      = useState(false);
 
   const fetchExpenses = useCallback(async () => {
     setLoading(true);
@@ -96,8 +102,7 @@ export default function DashboardPage() {
         fetch(`/api/expenses/${e.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sortOrder: i * 10 }) })
       ));
     }
-    const a = section[idx];
-    const b = section[swapIdx];
+    const a = section[idx], b = section[swapIdx];
     const aOrder = allZero ? idx * 10 : a.sortOrder;
     const bOrder = allZero ? swapIdx * 10 : b.sortOrder;
     await Promise.all([
@@ -108,7 +113,7 @@ export default function DashboardPage() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Delete this expense?")) return;
+    if (!confirm("Delete this entry?")) return;
     await fetch(`/api/expenses/${id}`, { method: "DELETE" });
     await fetchExpenses();
   }
@@ -123,9 +128,9 @@ export default function DashboardPage() {
         body: JSON.stringify({ targetMonthKey: next }),
       });
       const data = await res.json();
-      if (res.ok) { setGenMsg(`✓ ${data.message}`); router.push(`/monthly/${next}`); }
-      else setGenMsg(`✗ ${data.error}`);
-    } catch { setGenMsg("✗ Network error"); }
+      if (res.ok) { setGenMsg(`${data.message}`); router.push(`/monthly/${next}`); }
+      else setGenMsg(`${data.error}`);
+    } catch { setGenMsg("Network error"); }
     finally { setGenerating(false); }
   }
 
@@ -156,9 +161,9 @@ export default function DashboardPage() {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         ...addIncomeForm,
-        amount: parseFloat(addIncomeForm.amount) || 0,
-        amountPaid: parseFloat(addIncomeForm.amountPaid) || 0,
-        frequency: "income",
+        amount:      parseFloat(addIncomeForm.amount) || 0,
+        amountPaid:  parseFloat(addIncomeForm.amountPaid) || 0,
+        frequency:   "income",
         monthKey,
       }),
     });
@@ -172,11 +177,11 @@ export default function DashboardPage() {
   }
 
   // ── Split expenses ─────────────────────────────────────────────────────────
-  const monthly   = expenses.filter(e => e.frequency === "monthly"  && e.category !== "GR Business");
-  const annual    = expenses.filter(e => e.frequency === "annual"   && e.category !== "GR Business");
-  const liens     = expenses.filter(e => e.frequency === "lien");
-  const income    = expenses.filter(e => e.frequency === "income");
-  const grBusiness = expenses.filter(e => e.category === "GR Business");
+  const monthly    = expenses.filter(e => e.frequency === "monthly" && e.category !== "GR Business");
+  const annual     = expenses.filter(e => e.frequency === "annual"  && e.category !== "GR Business");
+  const liens      = expenses.filter(e => e.frequency === "lien");
+  const income     = expenses.filter(e => e.frequency === "income");
+  const grBusiness = expenses.filter(e => e.category  === "GR Business");
 
   // ── Stats ──────────────────────────────────────────────────────────────────
   function effectivePaid(e: Expense) {
@@ -203,8 +208,10 @@ export default function DashboardPage() {
   const iExp  = income.reduce((s, e) => s + e.amount, 0);
   const iRec  = income.reduce((s, e) => s + effectivePaid(e), 0);
 
-  const totalRem   = mRem + aRem + lRem + grRem;
-  const netBalance = iRec - totalRem;
+  const totalRem    = mRem + aRem + lRem + grRem;
+  const totalDue    = mDue + aDue + lDue + grDue;
+  const totalPaidAll = mPaid + aPaid + lPaid + grPaid;
+  const netBalance  = iRec - totalRem;
 
   const nonIncomeExpenses = expenses.filter(e => e.frequency !== "income");
   const pastDueCount = nonIncomeExpenses.filter(e => {
@@ -216,368 +223,388 @@ export default function DashboardPage() {
     return s === "Paid";
   }).length;
 
-  const monthlyCards: StatCard[] = [
-    { label: "Monthly Due",  value: fmt(mDue),            sub: `${monthly.length} items`, accent: NAVY },
-    { label: "Paid",         value: fmt(mPaid + grPaid),  sub: `${paidCount} paid`,       accent: "#16a34a" },
-    { label: "Remaining",    value: fmt(mRem),            sub: `of ${fmt(mDue)}`,         accent: "#dc2626" },
-    { label: "Past Due",     value: String(pastDueCount), sub: `need attention`,          accent: "#b91c1c" },
-  ];
+  const progressPct = (mDue + grDue) > 0 ? ((mPaid + grPaid) / (mDue + grDue)) * 100 : 0;
 
-  // ── Shared section header style ────────────────────────────────────────────
+  // ── AI Insights ────────────────────────────────────────────────────────────
+  const insights: { text: string; tone: "warning" | "positive" | "neutral" }[] = [];
+  const budgetPct   = totalDue > 0 ? Math.round((totalPaidAll / totalDue) * 100) : 0;
+  const coveragePct = totalRem > 0 ? Math.round((iRec / totalRem) * 100) : 100;
+  const grPortfolioPct = totalDue > 0 ? Math.round((grDue / totalDue) * 100) : 0;
+
+  if (pastDueCount > 0)
+    insights.push({ text: `${pastDueCount} obligation${pastDueCount > 1 ? "s" : ""} past due — immediate attention advised.`, tone: "warning" });
+  insights.push({ text: `${budgetPct}% of total obligations fulfilled this period — ${fmt(totalDue - totalPaidAll)} outstanding across all categories.`, tone: budgetPct >= 75 ? "positive" : "neutral" });
+  if (iRec > 0)
+    insights.push({ text: `Received income covers ${Math.min(coveragePct, 999)}% of current outstanding obligations.`, tone: coveragePct >= 100 ? "positive" : "neutral" });
+  if (grPortfolioPct > 0)
+    insights.push({ text: `Gracefully Redefined comprises ${grPortfolioPct}% of total portfolio obligations — ${fmt(grRem)} remaining.`, tone: "neutral" });
+  if (netBalance >= 0)
+    insights.push({ text: `Net financial position: ${fmt(netBalance)} surplus after all remaining obligations.`, tone: "positive" });
+  else
+    insights.push({ text: `Net financial position: ${fmt(Math.abs(netBalance))} shortfall against remaining obligations.`, tone: "warning" });
+
+  // ── Section header helper ─────────────────────────────────────────────────
   const chevron = (open: boolean) => (
-    <span className="text-xs ml-1" style={{ color: "#94a3b8" }}>{open ? "▾" : "▸"}</span>
+    <span style={{ color: GOLD, fontSize: 10, marginLeft: 6 }}>{open ? "▾" : "▸"}</span>
   );
 
-  return (
-    <div style={{ background: "#ffffff", minHeight: "100vh" }}>
+  const inpStyle = { background: IVORY, border: `1px solid ${BORDER}`, color: OBSIDIAN };
+  const inp = "w-full px-3 py-2.5 text-sm rounded-sm focus:outline-none";
 
-      {/* Page header */}
-      <div style={{ background: "linear-gradient(135deg, #0d2b4e 0%, #1a4a8a 100%)", borderBottom: "1px solid #163152" }}>
-        <div className="max-w-screen-2xl mx-auto px-6 py-6">
-          <div className="flex items-start justify-between">
+  return (
+    <div style={{ background: IVORY, minHeight: "100vh", fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif" }}>
+
+      {/* ── Page Header ───────────────────────────────────────────────────── */}
+      <div style={{ background: OBSIDIAN, borderBottom: `1px solid ${GOLD}` }}>
+        <div className="max-w-screen-2xl mx-auto px-8 py-7">
+          <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-white tracking-tight">Estate Management</h1>
-              <p className="text-sm mt-0.5" style={{ color: "rgba(255,255,255,0.55)" }}>{fmtMonth(monthKey)}</p>
+              <p className="text-xs tracking-widest mb-1" style={{ color: GOLD, letterSpacing: "0.2em" }}>ESTATE MANAGEMENT</p>
+              <h1 className="text-3xl font-light text-white tracking-wide">{fmtMonth(monthKey)}</h1>
             </div>
-            <div className="flex flex-col items-end gap-3">
+            <div className="flex flex-col items-end gap-4">
               <div className="text-right">
-                <p className="text-xs font-semibold" style={{ color: "rgba(255,255,255,0.9)" }}>
-                  {fmtEasternTime(now).weekday}, {fmtEasternTime(now).date}
+                <p className="text-xs tracking-widest" style={{ color: "rgba(255,255,255,0.45)", letterSpacing: "0.12em" }}>
+                  {fmtEasternTime(now).weekday.toUpperCase()}, {fmtEasternTime(now).date.toUpperCase()}
                 </p>
-                <p className="text-sm font-semibold tabular-nums" style={{ color: "#ffffff" }}>
-                  {fmtEasternTime(now).time} <span className="text-xs font-normal" style={{ color: "rgba(255,255,255,0.5)" }}>ET</span>
+                <p className="text-sm font-light tabular-nums mt-0.5" style={{ color: "rgba(255,255,255,0.85)" }}>
+                  {fmtEasternTime(now).time} <span className="text-xs" style={{ color: GOLD }}>ET</span>
                 </p>
               </div>
               <div className="flex items-center gap-3">
                 <button onClick={() => router.push(`/monthly/${monthKey}`)}
-                  className="px-4 py-2 text-sm font-medium rounded-lg transition-all"
-                  style={{ background: "rgba(255,255,255,0.1)", color: "#fff", border: "1px solid rgba(255,255,255,0.2)" }}>
-                  Monthly View
+                  className="px-5 py-2 text-xs tracking-widest transition-all"
+                  style={{ background: "transparent", color: "rgba(255,255,255,0.7)", border: `1px solid rgba(255,255,255,0.2)`, letterSpacing: "0.12em" }}>
+                  MONTHLY VIEW
                 </button>
                 <button onClick={handleGenerate} disabled={generating}
-                  className="px-4 py-2 text-sm font-semibold rounded-lg transition-all disabled:opacity-50"
-                  style={{ background: "#fff", color: NAVY }}>
-                  {generating ? "Generating…" : `+ ${fmtMonth(getNextMonthKey(monthKey))}`}
+                  className="px-5 py-2 text-xs tracking-widest transition-all disabled:opacity-50"
+                  style={{ background: GOLD, color: OBSIDIAN, border: `1px solid ${GOLD}`, letterSpacing: "0.12em", fontWeight: 600 }}>
+                  {generating ? "GENERATING…" : `+ ${fmtMonth(getNextMonthKey(monthKey)).toUpperCase()}`}
                 </button>
               </div>
             </div>
           </div>
-          <div className="mt-4 h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.15)" }}>
-            <div className="h-full rounded-full transition-all duration-700"
-              style={{ width: `${(mDue + grDue) > 0 ? ((mPaid + grPaid) / (mDue + grDue)) * 100 : 0}%`, background: "linear-gradient(90deg, #34d399, #10b981)" }} />
+
+          {/* Progress bar */}
+          <div className="mt-6">
+            <div className="h-px w-full" style={{ background: "rgba(255,255,255,0.1)" }}>
+              <div className="h-px transition-all duration-700" style={{ width: `${progressPct}%`, background: GOLD }} />
+            </div>
+            <div className="flex justify-between mt-2">
+              <p className="text-xs" style={{ color: "rgba(255,255,255,0.3)", letterSpacing: "0.08em" }}>
+                {fmt(mPaid + grPaid)} PAID OF {fmt(mDue + grDue)} MONTHLY
+              </p>
+              <p className="text-xs" style={{ color: GOLD, letterSpacing: "0.08em" }}>{Math.round(progressPct)}%</p>
+            </div>
           </div>
-          <p className="text-xs mt-1.5" style={{ color: "rgba(255,255,255,0.45)" }}>
-            {fmt(mPaid + grPaid)} paid of {fmt(mDue + grDue)} monthly expenses
-          </p>
         </div>
       </div>
 
-      {/* Sticky balance bar */}
-      <div className="sticky top-0 z-20 border-b" style={{ background: "#8C8279", borderColor: "#7a7068" }}>
-        <div className="max-w-screen-2xl mx-auto px-6 py-2 flex items-center gap-6 text-sm">
-          <span style={{ color: "rgba(255,255,255,0.65)", letterSpacing: "0.06em", fontSize: 11 }}>MONTHLY EXPENSES</span>
-          <span style={{ color: "rgba(255,255,255,0.55)" }}>Due <strong style={{ color: "#fff" }}>{fmt(mDue + grDue)}</strong></span>
-          <span style={{ color: "rgba(255,255,255,0.3)" }}>·</span>
-          <span style={{ color: "rgba(255,255,255,0.55)" }}>Paid <strong style={{ color: "#d4f0dd" }}>{fmt(mPaid + grPaid)}</strong></span>
-          <span style={{ color: "rgba(255,255,255,0.3)" }}>·</span>
-          <span style={{ color: "rgba(255,255,255,0.55)" }}>Remaining <strong style={{ color: "#ffd5d5" }}>{fmt(mRem + grRem)}</strong></span>
+      {/* ── Sticky summary bar ────────────────────────────────────────────── */}
+      <div className="sticky top-0 z-20" style={{ background: "#1C1C1C", borderBottom: `1px solid #2A2A2A` }}>
+        <div className="max-w-screen-2xl mx-auto px-8 py-2.5 flex items-center gap-8">
+          <span style={{ color: GOLD, letterSpacing: "0.18em", fontSize: 10 }}>MONTHLY</span>
+          <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 12 }}>
+            Due <strong style={{ color: "#fff", fontWeight: 400 }}>{fmt(mDue + grDue)}</strong>
+          </span>
+          <span style={{ color: "rgba(255,255,255,0.2)" }}>—</span>
+          <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 12 }}>
+            Paid <strong style={{ color: GOLD, fontWeight: 500 }}>{fmt(mPaid + grPaid)}</strong>
+          </span>
+          <span style={{ color: "rgba(255,255,255,0.2)" }}>—</span>
+          <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 12 }}>
+            Remaining <strong style={{ color: "rgba(255,255,255,0.75)", fontWeight: 400 }}>{fmt(mRem + grRem)}</strong>
+          </span>
         </div>
       </div>
 
-      {/* Tab bar */}
-      <div style={{ borderBottom: "1px solid #e2e8f0", background: "#fff" }}>
-        <div className="max-w-screen-2xl mx-auto px-6 flex gap-1 pt-2">
+      {/* ── Tab bar ───────────────────────────────────────────────────────── */}
+      <div style={{ borderBottom: `1px solid ${BORDER}`, background: SURFACE }}>
+        <div className="max-w-screen-2xl mx-auto px-8 flex gap-0 pt-0">
           {(["overview", "income"] as const).map(tab => (
             <button key={tab} onClick={() => setActiveTab(tab)}
-              className="px-5 py-2 text-sm font-semibold transition-all"
+              className="px-6 py-3.5 text-xs transition-all"
               style={activeTab === tab
-                ? { color: NAVY, borderBottom: `2px solid ${NAVY}`, background: "transparent" }
-                : { color: "#94a3b8", borderBottom: "2px solid transparent", background: "transparent" }}>
-              {tab === "overview" ? "Overview" : "Income"}
+                ? { color: OBSIDIAN, borderBottom: `2px solid ${GOLD}`, background: "transparent", letterSpacing: "0.16em", fontWeight: 600 }
+                : { color: "#9E9E9E", borderBottom: "2px solid transparent", background: "transparent", letterSpacing: "0.16em" }}>
+              {tab === "overview" ? "OVERVIEW" : "INCOME"}
             </button>
           ))}
         </div>
       </div>
 
-      <div className="max-w-screen-2xl mx-auto px-6 py-4">
+      <div className="max-w-screen-2xl mx-auto px-8 py-8">
 
         {genMsg && (
-          <div className="mb-6 px-4 py-3 rounded-lg text-sm font-medium"
-            style={genMsg.startsWith("✓")
-              ? { background: "#dcfce7", color: "#15803d", border: "1px solid #bbf7d0" }
-              : { background: "#fee2e2", color: "#b91c1c", border: "1px solid #fecaca" }}>
+          <div className="mb-8 px-5 py-3 text-xs tracking-wide" style={{ background: SURFACE, border: `1px solid ${BORDER}`, color: WARM_GRAY, letterSpacing: "0.06em" }}>
             {genMsg}
           </div>
         )}
 
-        {/* ── OVERVIEW TAB ─────────────────────────────────────────────────── */}
+        {/* ── OVERVIEW TAB ──────────────────────────────────────────────── */}
         {activeTab === "overview" && (
           <>
-            {/* Monthly summary cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
-              {monthlyCards.map(c => (
-                <div key={c.label} className="rounded-lg p-3 shadow-sm"
-                  style={{ background: "#fff", border: `1px solid #e2e8f0`, borderTop: `3px solid ${c.accent}` }}>
-                  <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: "#94a3b8" }}>{c.label}</p>
-                  <p className="text-xl font-bold tabular-nums" style={{ color: c.accent }}>{c.value}</p>
-                  {c.sub && <p className="text-xs mt-1" style={{ color: "#94a3b8" }}>{c.sub}</p>}
+            {/* Summary stat cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+              {[
+                { label: "Monthly Due",  value: fmt(mDue),           sub: `${monthly.length} items`,  accent: OBSIDIAN },
+                { label: "Total Paid",   value: fmt(mPaid + grPaid), sub: `${paidCount} fulfilled`,   accent: MUTED_GRN },
+                { label: "Remaining",    value: fmt(mRem),           sub: `of ${fmt(mDue)}`,          accent: WARM_GRAY },
+                { label: "Past Due",     value: String(pastDueCount),sub: "require attention",        accent: pastDueCount > 0 ? MUTED_RED : WARM_GRAY },
+              ].map(c => (
+                <div key={c.label} style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderTop: `2px solid ${c.accent}` }} className="p-5">
+                  <p className="text-xs mb-3" style={{ color: WARM_GRAY, letterSpacing: "0.16em" }}>{c.label.toUpperCase()}</p>
+                  <p className="text-2xl font-light tabular-nums" style={{ color: c.accent }}>{c.value}</p>
+                  {c.sub && <p className="text-xs mt-2" style={{ color: "#BDBAB6", letterSpacing: "0.06em" }}>{c.sub}</p>}
                 </div>
               ))}
             </div>
 
             {/* Income summary cards */}
-            <div className="grid grid-cols-2 gap-3 mb-6">
+            <div className="grid grid-cols-2 gap-4 mb-8">
               {[
-                { label: "Income Expected", value: fmt(iExp), sub: `${income.length} sources`, accent: "#0f766e" },
-                { label: "Income Received", value: fmt(iRec), sub: `of ${fmt(iExp)}`,          accent: "#16a34a" },
+                { label: "Income Expected", value: fmt(iExp), sub: `${income.length} sources`,  accent: OBSIDIAN },
+                { label: "Income Received", value: fmt(iRec), sub: `of ${fmt(iExp)} expected`,  accent: MUTED_GRN },
               ].map(c => (
-                <div key={c.label} className="rounded-lg p-3 shadow-sm"
-                  style={{ background: "#fff", border: `1px solid #e2e8f0`, borderTop: `3px solid ${c.accent}` }}>
-                  <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: "#94a3b8" }}>{c.label}</p>
-                  <p className="text-xl font-bold tabular-nums" style={{ color: c.accent }}>{c.value}</p>
-                  {c.sub && <p className="text-xs mt-1" style={{ color: "#94a3b8" }}>{c.sub}</p>}
+                <div key={c.label} style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderTop: `2px solid ${c.accent}` }} className="p-5">
+                  <p className="text-xs mb-3" style={{ color: WARM_GRAY, letterSpacing: "0.16em" }}>{c.label.toUpperCase()}</p>
+                  <p className="text-2xl font-light tabular-nums" style={{ color: c.accent }}>{c.value}</p>
+                  {c.sub && <p className="text-xs mt-2" style={{ color: "#BDBAB6", letterSpacing: "0.06em" }}>{c.sub}</p>}
                 </div>
               ))}
             </div>
 
-            {/* Expenses (Monthly) */}
-            <div className="mb-6">
-              <div className="flex items-center justify-between mb-3">
-                <button onClick={() => setOpenMonthly(!openMonthly)}
-                  className="flex items-center gap-3 hover:opacity-75 transition-opacity">
-                  <div className="w-1 h-5 rounded-full" style={{ background: NAVY }} />
-                  <h2 className="text-base font-bold" style={{ color: NAVY }}>Expenses</h2>
-                  {chevron(openMonthly)}
-                </button>
-                {openMonthly && (
-                  <button onClick={() => setShowAdd(!showAdd)}
-                    className="px-3 py-1.5 text-xs font-semibold rounded-lg transition-all"
-                    style={{ background: showAdd ? "#fee2e2" : "#fff", color: showAdd ? "#b91c1c" : NAVY, border: `1px solid ${showAdd ? "#fecaca" : "#cbd5e1"}` }}>
-                    {showAdd ? "Cancel" : "+ Add Expense"}
-                  </button>
-                )}
+            {/* ── AI Insights ─────────────────────────────────────────────── */}
+            <div className="mb-10" style={{ border: `1px solid ${BORDER}`, background: SURFACE }}>
+              <div className="px-6 py-4 flex items-center gap-3" style={{ borderBottom: `1px solid ${BORDER}`, background: IVORY }}>
+                <div className="w-px h-4" style={{ background: GOLD }} />
+                <p className="text-xs font-semibold tracking-widest" style={{ color: OBSIDIAN, letterSpacing: "0.2em" }}>AI FINANCIAL INSIGHTS</p>
               </div>
-              {openMonthly && (
-                <>
-                  {showAdd && (
-                    <form onSubmit={handleAddExpense}
-                      className="mb-5 rounded-xl p-5 grid grid-cols-2 md:grid-cols-3 gap-4"
-                      style={{ background: "#fff", border: "1px solid #cbd5e1", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
-                      {[
-                        { label: "Description *", key: "description", type: "text",   placeholder: "e.g. Netflix" },
-                        { label: "Amount *",      key: "amount",      type: "number", placeholder: "0.00" },
-                        { label: "Category *",    key: "category",    type: "text",   placeholder: "e.g. GR Business" },
-                        { label: "Due Date *",    key: "dueDate",     type: "date",   placeholder: "" },
-                      ].map(f => (
-                        <div key={f.key}>
-                          <label className="block text-xs font-medium mb-1" style={{ color: "#64748b" }}>{f.label}</label>
-                          <input type={f.type} value={(addForm as any)[f.key]} placeholder={f.placeholder}
-                            onChange={e => setAddForm({ ...addForm, [f.key]: e.target.value })}
-                            className="w-full px-3 py-2 text-sm rounded-lg focus:outline-none"
-                            style={{ background: "#f8fafc", border: "1px solid #e2e8f0", color: "#0f172a" }} />
-                        </div>
-                      ))}
-                      <div className="flex items-end gap-4">
-                        <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: "#64748b" }}>
-                          <input type="checkbox" checked={addForm.isRecurring}
-                            onChange={e => setAddForm({ ...addForm, isRecurring: e.target.checked })}
-                            className="w-4 h-4 accent-blue-700" /> Recurring
-                        </label>
-                        <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: "#64748b" }}>
-                          <input type="checkbox" checked={addForm.frequency === "annual"}
-                            onChange={e => setAddForm({ ...addForm, frequency: e.target.checked ? "annual" : "monthly" })}
-                            className="w-4 h-4 accent-blue-700" /> Annual
-                        </label>
-                      </div>
-                      <div className="col-span-2 md:col-span-3 flex items-center gap-3">
-                        {addError && <p className="text-xs" style={{ color: "#dc2626" }}>{addError}</p>}
-                        <button type="submit"
-                          className="px-5 py-2 text-sm font-semibold rounded-lg transition-all"
-                          style={{ background: NAVY, color: "#fff" }}>
-                          Add Expense
-                        </button>
-                      </div>
-                    </form>
-                  )}
-                  {loading ? (
-                    <div className="py-16 text-center" style={{ color: "#94a3b8" }}>Loading…</div>
-                  ) : (
-                    <ExpenseTable expenses={monthly} onUpdate={handleUpdate} onDelete={handleDelete}
-                      onMoveUp={id => handleMove(monthly, id, "up")} onMoveDown={id => handleMove(monthly, id, "down")}
-                      headerColor={NAVY} />
-                  )}
-                </>
-              )}
+              <div className="divide-y" style={{ borderColor: BORDER }}>
+                {insights.map((ins, i) => (
+                  <div key={i} className="px-6 py-4 flex items-start gap-4">
+                    <span style={{
+                      color: ins.tone === "warning" ? MUTED_RED : ins.tone === "positive" ? MUTED_GRN : GOLD,
+                      fontSize: 16, lineHeight: 1, marginTop: 1, flexShrink: 0
+                    }}>◆</span>
+                    <p className="text-sm leading-relaxed" style={{ color: WARM_GRAY }}>{ins.text}</p>
+                  </div>
+                ))}
+              </div>
             </div>
 
-            {/* Gracefully Redefined */}
-            <div className="mb-6">
-              <div className="flex items-center justify-between mb-2">
-                <button onClick={() => setOpenGR(!openGR)}
-                  className="flex items-center gap-3 hover:opacity-75 transition-opacity">
-                  <div className="w-1 h-5 rounded-full" style={{ background: "#c4a882" }} />
-                  <h2 className="text-base font-bold" style={{ color: "#000000" }}>Gracefully Redefined</h2>
-                  {chevron(openGR)}
+            {/* ── Section: Expenses ─────────────────────────────────────── */}
+            <SectionBlock
+              label="EXPENSES"
+              accent={OBSIDIAN}
+              open={openMonthly}
+              onToggle={() => setOpenMonthly(!openMonthly)}
+              chevron={chevron}
+              action={openMonthly ? (
+                <button onClick={() => setShowAdd(!showAdd)}
+                  className="text-xs tracking-widest px-4 py-2 transition-all"
+                  style={{ background: showAdd ? IVORY : OBSIDIAN, color: showAdd ? MUTED_RED : "#fff", border: `1px solid ${showAdd ? BORDER : OBSIDIAN}`, letterSpacing: "0.12em" }}>
+                  {showAdd ? "CANCEL" : "+ ADD"}
                 </button>
-              </div>
-              {openGR && (
-                <>
-                  <div className="grid grid-cols-3 gap-2 mb-3">
-                    {[
-                      { label: "Due",       value: fmt(grDue),  accent: "#8b6f4e" },
-                      { label: "Paid",      value: fmt(grPaid), accent: "#16a34a" },
-                      { label: "Remaining", value: fmt(grRem),  accent: "#dc2626" },
-                    ].map(s => (
-                      <div key={s.label} className="rounded-lg px-3 py-2"
-                        style={{ background: "#fff", border: "1px solid #e2e8f0", borderLeft: `3px solid ${s.accent}` }}>
-                        <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#94a3b8" }}>{s.label}</p>
-                        <p className="text-base font-bold tabular-nums mt-0.5" style={{ color: s.accent }}>{s.value}</p>
-                      </div>
-                    ))}
+              ) : null}>
+              {showAdd && (
+                <form onSubmit={handleAddExpense}
+                  className="mb-6 p-6 grid grid-cols-2 md:grid-cols-3 gap-4"
+                  style={{ background: IVORY, border: `1px solid ${BORDER}` }}>
+                  {[
+                    { label: "Description", key: "description", type: "text",   placeholder: "e.g. Netflix" },
+                    { label: "Amount",       key: "amount",      type: "number", placeholder: "0.00" },
+                    { label: "Category",     key: "category",    type: "text",   placeholder: "e.g. GR Business" },
+                    { label: "Due Date",     key: "dueDate",     type: "date",   placeholder: "" },
+                  ].map(f => (
+                    <div key={f.key}>
+                      <label className="block text-xs mb-1.5" style={{ color: WARM_GRAY, letterSpacing: "0.12em" }}>{f.label.toUpperCase()}</label>
+                      <input type={f.type} value={(addForm as any)[f.key]} placeholder={f.placeholder}
+                        onChange={e => setAddForm({ ...addForm, [f.key]: e.target.value })}
+                        className={inp} style={inpStyle} />
+                    </div>
+                  ))}
+                  <div className="flex items-end gap-6">
+                    <label className="flex items-center gap-2 text-xs cursor-pointer" style={{ color: WARM_GRAY, letterSpacing: "0.08em" }}>
+                      <input type="checkbox" checked={addForm.isRecurring}
+                        onChange={e => setAddForm({ ...addForm, isRecurring: e.target.checked })} className="w-3.5 h-3.5" /> RECURRING
+                    </label>
+                    <label className="flex items-center gap-2 text-xs cursor-pointer" style={{ color: WARM_GRAY, letterSpacing: "0.08em" }}>
+                      <input type="checkbox" checked={addForm.frequency === "annual"}
+                        onChange={e => setAddForm({ ...addForm, frequency: e.target.checked ? "annual" : "monthly" })} className="w-3.5 h-3.5" /> ANNUAL
+                    </label>
                   </div>
-                  {!loading && (
-                    <ExpenseTable expenses={grBusiness} onUpdate={handleUpdate} onDelete={handleDelete}
-                      onMoveUp={id => handleMove(grBusiness, id, "up")} onMoveDown={id => handleMove(grBusiness, id, "down")}
-                      headerColor="#c4a882" headerTextColor="#000000" />
-                  )}
-                </>
+                  <div className="col-span-2 md:col-span-3 flex items-center gap-4">
+                    {addError && <p className="text-xs" style={{ color: MUTED_RED }}>{addError}</p>}
+                    <button type="submit" className="px-6 py-2.5 text-xs tracking-widest"
+                      style={{ background: OBSIDIAN, color: "#fff", letterSpacing: "0.14em" }}>ADD EXPENSE</button>
+                  </div>
+                </form>
               )}
-            </div>
+              <MiniStats items={[
+                { label: "DUE", value: fmt(mDue) },
+                { label: "PAID", value: fmt(mPaid), positive: true },
+                { label: "REMAINING", value: fmt(mRem), negative: mRem > 0 },
+              ]} />
+              {loading
+                ? <Loader />
+                : <ExpenseTable expenses={monthly} onUpdate={handleUpdate} onDelete={handleDelete}
+                    onMoveUp={id => handleMove(monthly, id, "up")} onMoveDown={id => handleMove(monthly, id, "down")}
+                    headerColor={OBSIDIAN} />}
+            </SectionBlock>
 
-            {/* Annual Expenses */}
-            <div className="mb-6">
-              <div className="flex items-center justify-between mb-2">
-                <button onClick={() => setOpenAnnual(!openAnnual)}
-                  className="flex items-center gap-3 hover:opacity-75 transition-opacity">
-                  <div className="w-1 h-5 rounded-full" style={{ background: "#1a5c8a" }} />
-                  <h2 className="text-base font-bold" style={{ color: "#1a3a5c" }}>Annual Expenses</h2>
-                  {chevron(openAnnual)}
-                </button>
-              </div>
-              {openAnnual && (
-                <>
-                  <div className="grid grid-cols-3 gap-2 mb-3">
-                    {[
-                      { label: "Due",       value: fmt(aDue),  accent: "#1a5c8a" },
-                      { label: "Paid",      value: fmt(aPaid), accent: "#16a34a" },
-                      { label: "Remaining", value: fmt(aRem),  accent: "#dc2626" },
-                    ].map(s => (
-                      <div key={s.label} className="rounded-lg px-3 py-2"
-                        style={{ background: "#fff", border: "1px solid #e2e8f0", borderLeft: `3px solid ${s.accent}` }}>
-                        <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#94a3b8" }}>{s.label}</p>
-                        <p className="text-base font-bold tabular-nums mt-0.5" style={{ color: s.accent }}>{s.value}</p>
-                      </div>
-                    ))}
-                  </div>
-                  {!loading && (
-                    <ExpenseTable expenses={annual} onUpdate={handleUpdate} onDelete={handleDelete}
-                      onMoveUp={id => handleMove(annual, id, "up")} onMoveDown={id => handleMove(annual, id, "down")}
-                      headerColor={ANNUAL_HDR} />
-                  )}
-                </>
+            {/* ── Section: Gracefully Redefined ─────────────────────────── */}
+            <SectionBlock
+              label="GRACEFULLY REDEFINED"
+              accent={GR_BEIGE}
+              open={openGR}
+              onToggle={() => setOpenGR(!openGR)}
+              chevron={chevron}>
+              <MiniStats items={[
+                { label: "DUE", value: fmt(grDue) },
+                { label: "PAID", value: fmt(grPaid), positive: true },
+                { label: "REMAINING", value: fmt(grRem), negative: grRem > 0 },
+              ]} />
+              {!loading && (
+                <ExpenseTable expenses={grBusiness} onUpdate={handleUpdate} onDelete={handleDelete}
+                  onMoveUp={id => handleMove(grBusiness, id, "up")} onMoveDown={id => handleMove(grBusiness, id, "down")}
+                  headerColor={GR_BEIGE} headerTextColor={OBSIDIAN} />
               )}
-            </div>
+            </SectionBlock>
 
-            {/* Liens & Collections */}
-            <div className="mb-6">
-              <div className="flex items-center justify-between mb-2">
-                <button onClick={() => setOpenLiens(!openLiens)}
-                  className="flex items-center gap-3 hover:opacity-75 transition-opacity">
-                  <div className="w-1 h-5 rounded-full" style={{ background: "#7f1d1d" }} />
-                  <h2 className="text-base font-bold" style={{ color: "#7f1d1d" }}>Outstanding Obligations</h2>
-                  {chevron(openLiens)}
-                </button>
-              </div>
-              {openLiens && (
-                <>
-                  <div className="grid grid-cols-3 gap-2 mb-3">
-                    {[
-                      { label: "Total",     value: fmt(lDue),  accent: "#7f1d1d" },
-                      { label: "Paid",      value: fmt(lPaid), accent: "#16a34a" },
-                      { label: "Remaining", value: fmt(lRem),  accent: "#dc2626" },
-                    ].map(s => (
-                      <div key={s.label} className="rounded-lg px-3 py-2"
-                        style={{ background: "#fff", border: "1px solid #e2e8f0", borderLeft: `3px solid ${s.accent}` }}>
-                        <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#94a3b8" }}>{s.label}</p>
-                        <p className="text-base font-bold tabular-nums mt-0.5" style={{ color: s.accent }}>{s.value}</p>
-                      </div>
-                    ))}
-                  </div>
-                  {!loading && (
-                    <ExpenseTable expenses={liens} onUpdate={handleUpdate} onDelete={handleDelete}
-                      onMoveUp={id => handleMove(liens, id, "up")} onMoveDown={id => handleMove(liens, id, "down")}
-                      headerColor="#7f1d1d" />
-                  )}
-                </>
+            {/* ── Section: Annual ───────────────────────────────────────── */}
+            <SectionBlock
+              label="ANNUAL EXPENSES"
+              accent="#8A8078"
+              open={openAnnual}
+              onToggle={() => setOpenAnnual(!openAnnual)}
+              chevron={chevron}>
+              <MiniStats items={[
+                { label: "DUE", value: fmt(aDue) },
+                { label: "PAID", value: fmt(aPaid), positive: true },
+                { label: "REMAINING", value: fmt(aRem), negative: aRem > 0 },
+              ]} />
+              {!loading && (
+                <ExpenseTable expenses={annual} onUpdate={handleUpdate} onDelete={handleDelete}
+                  onMoveUp={id => handleMove(annual, id, "up")} onMoveDown={id => handleMove(annual, id, "down")}
+                  headerColor={OBSIDIAN} />
               )}
-            </div>
+            </SectionBlock>
+
+            {/* ── Section: Outstanding Obligations ─────────────────────── */}
+            <SectionBlock
+              label="OUTSTANDING OBLIGATIONS"
+              accent={MUTED_RED}
+              open={openLiens}
+              onToggle={() => setOpenLiens(!openLiens)}
+              chevron={chevron}>
+              <MiniStats items={[
+                { label: "TOTAL", value: fmt(lDue) },
+                { label: "PAID", value: fmt(lPaid), positive: true },
+                { label: "REMAINING", value: fmt(lRem), negative: lRem > 0 },
+              ]} />
+              {!loading && (
+                <ExpenseTable expenses={liens} onUpdate={handleUpdate} onDelete={handleDelete}
+                  onMoveUp={id => handleMove(liens, id, "up")} onMoveDown={id => handleMove(liens, id, "down")}
+                  headerColor={OBSIDIAN} />
+              )}
+            </SectionBlock>
           </>
         )}
 
-        {/* ── INCOME TAB ───────────────────────────────────────────────────── */}
+        {/* ── INCOME TAB ────────────────────────────────────────────────── */}
         {activeTab === "income" && (
-          <div className="mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <button onClick={() => setOpenIncome(!openIncome)}
-                className="flex items-center gap-3 hover:opacity-75 transition-opacity">
-                <div className="w-1 h-6 rounded-full" style={{ background: "#0f766e" }} />
-                <div>
-                  <h2 className="text-base font-bold" style={{ color: "#0f766e" }}>Income</h2>
-                  <p className="text-xs" style={{ color: "#94a3b8" }}>
-                    {income.length} sources · Expected: {fmt(iExp)} · Received: {fmt(iRec)} · Net Balance:{" "}
-                    <span style={{ color: netBalance >= 0 ? "#16a34a" : "#dc2626", fontWeight: 600 }}>{fmt(netBalance)}</span>
-                  </p>
-                </div>
-                {chevron(openIncome)}
+          <SectionBlock
+            label="INCOME"
+            accent={MUTED_GRN}
+            open={openIncome}
+            onToggle={() => setOpenIncome(!openIncome)}
+            chevron={chevron}
+            sub={`${income.length} sources · Expected ${fmt(iExp)} · Received ${fmt(iRec)} · Net ${fmt(netBalance)}`}
+            action={openIncome ? (
+              <button onClick={() => setShowAddIncome(!showAddIncome)}
+                className="text-xs tracking-widest px-4 py-2 transition-all"
+                style={{ background: showAddIncome ? IVORY : OBSIDIAN, color: showAddIncome ? MUTED_RED : "#fff", border: `1px solid ${showAddIncome ? BORDER : OBSIDIAN}`, letterSpacing: "0.12em" }}>
+                {showAddIncome ? "CANCEL" : "+ ADD INCOME"}
               </button>
-              {openIncome && (
-                <button onClick={() => setShowAddIncome(!showAddIncome)}
-                  className="px-3 py-1.5 text-xs font-semibold rounded-lg transition-all"
-                  style={{ background: showAddIncome ? "#fee2e2" : "#fff", color: showAddIncome ? "#b91c1c" : "#0f766e", border: `1px solid ${showAddIncome ? "#fecaca" : "#99f6e4"}` }}>
-                  {showAddIncome ? "Cancel" : "+ Add Income"}
-                </button>
-              )}
-            </div>
-            {openIncome && (
-              <>
-                {showAddIncome && (
-                  <form onSubmit={handleAddIncome}
-                    className="mb-5 rounded-xl p-5 grid grid-cols-2 md:grid-cols-5 gap-4"
-                    style={{ background: "#fff", border: "1px solid #99f6e4", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
-                    {[
-                      { label: "Description *",     key: "description", type: "text",   placeholder: "e.g. Paycheck" },
-                      { label: "Expected Amount *",  key: "amount",      type: "number", placeholder: "0.00" },
-                      { label: "Amount Received",    key: "amountPaid",  type: "number", placeholder: "0.00" },
-                      { label: "Category",           key: "category",    type: "text",   placeholder: "Income" },
-                      { label: "Date *",             key: "dueDate",     type: "date",   placeholder: "" },
-                    ].map(f => (
-                      <div key={f.key}>
-                        <label className="block text-xs font-medium mb-1" style={{ color: "#64748b" }}>{f.label}</label>
-                        <input type={f.type} value={(addIncomeForm as any)[f.key]} placeholder={f.placeholder}
-                          onChange={e => setAddIncomeForm({ ...addIncomeForm, [f.key]: e.target.value })}
-                          className="w-full px-3 py-2 text-sm rounded-lg focus:outline-none"
-                          style={{ background: "#f8fafc", border: "1px solid #e2e8f0", color: "#0f172a" }} />
-                      </div>
-                    ))}
-                    <div className="col-span-2 md:col-span-5 flex items-center gap-3">
-                      {addIncomeError && <p className="text-xs" style={{ color: "#dc2626" }}>{addIncomeError}</p>}
-                      <button type="submit"
-                        className="px-5 py-2 text-sm font-semibold rounded-lg"
-                        style={{ background: "#0f766e", color: "#fff" }}>Add Income</button>
-                    </div>
-                  </form>
-                )}
-                {!loading && (
-                  <ExpenseTable expenses={income} onUpdate={handleUpdate} onDelete={handleDelete}
-                    onMoveUp={id => handleMove(income, id, "up")} onMoveDown={id => handleMove(income, id, "down")}
-                    headerColor="#0f766e" />
-                )}
-              </>
+            ) : null}>
+            {showAddIncome && (
+              <form onSubmit={handleAddIncome}
+                className="mb-6 p-6 grid grid-cols-2 md:grid-cols-5 gap-4"
+                style={{ background: IVORY, border: `1px solid ${BORDER}` }}>
+                {[
+                  { label: "Description",       key: "description", type: "text",   placeholder: "e.g. Paycheck" },
+                  { label: "Expected Amount",    key: "amount",      type: "number", placeholder: "0.00" },
+                  { label: "Amount Received",    key: "amountPaid",  type: "number", placeholder: "0.00" },
+                  { label: "Category",           key: "category",    type: "text",   placeholder: "Income" },
+                  { label: "Date",               key: "dueDate",     type: "date",   placeholder: "" },
+                ].map(f => (
+                  <div key={f.key}>
+                    <label className="block text-xs mb-1.5" style={{ color: WARM_GRAY, letterSpacing: "0.12em" }}>{f.label.toUpperCase()}</label>
+                    <input type={f.type} value={(addIncomeForm as any)[f.key]} placeholder={f.placeholder}
+                      onChange={e => setAddIncomeForm({ ...addIncomeForm, [f.key]: e.target.value })}
+                      className={inp} style={inpStyle} />
+                  </div>
+                ))}
+                <div className="col-span-2 md:col-span-5 flex items-center gap-4">
+                  {addIncomeError && <p className="text-xs" style={{ color: MUTED_RED }}>{addIncomeError}</p>}
+                  <button type="submit" className="px-6 py-2.5 text-xs tracking-widest"
+                    style={{ background: OBSIDIAN, color: "#fff", letterSpacing: "0.14em" }}>ADD INCOME</button>
+                </div>
+              </form>
             )}
-          </div>
+            {!loading && (
+              <ExpenseTable expenses={income} onUpdate={handleUpdate} onDelete={handleDelete}
+                onMoveUp={id => handleMove(income, id, "up")} onMoveDown={id => handleMove(income, id, "down")}
+                headerColor={OBSIDIAN} />
+            )}
+          </SectionBlock>
         )}
-
       </div>
     </div>
   );
+}
+
+// ── Sub-components ─────────────────────────────────────────────────────────────
+
+function SectionBlock({ label, accent, open, onToggle, chevron, children, action, sub }: {
+  label: string; accent: string; open: boolean; onToggle: () => void;
+  chevron: (o: boolean) => React.ReactNode; children?: React.ReactNode;
+  action?: React.ReactNode; sub?: string;
+}) {
+  return (
+    <div className="mb-8">
+      <div className="flex items-center justify-between py-3 mb-4" style={{ borderBottom: `1px solid #E8E3DC` }}>
+        <button onClick={onToggle} className="flex items-center gap-3 hover:opacity-70 transition-opacity text-left">
+          <div className="w-0.5 h-4" style={{ background: accent }} />
+          <div>
+            <span className="text-xs font-semibold" style={{ color: "#111111", letterSpacing: "0.18em" }}>{label}</span>
+            {sub && <p className="text-xs mt-0.5" style={{ color: "#9E9E9E", letterSpacing: "0.04em" }}>{sub}</p>}
+          </div>
+          {chevron(open)}
+        </button>
+        {action}
+      </div>
+      {open && <div>{children}</div>}
+    </div>
+  );
+}
+
+function MiniStats({ items }: { items: { label: string; value: string; positive?: boolean; negative?: boolean }[] }) {
+  const OBSIDIAN = "#111111", GOLD = "#B8976A", MUTED_GRN = "#2A6B4A", MUTED_RED = "#8B2020", BORDER = "#E8E3DC", WARM_GRAY = "#6B6460";
+  return (
+    <div className="flex gap-0 mb-4" style={{ border: `1px solid ${BORDER}` }}>
+      {items.map((s, i) => (
+        <div key={s.label} className="flex-1 px-5 py-3" style={{ borderRight: i < items.length - 1 ? `1px solid ${BORDER}` : "none" }}>
+          <p className="text-xs mb-1" style={{ color: WARM_GRAY, letterSpacing: "0.14em" }}>{s.label}</p>
+          <p className="text-base font-light tabular-nums" style={{ color: s.positive ? MUTED_GRN : s.negative ? MUTED_RED : OBSIDIAN }}>{s.value}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Loader() {
+  return <div className="py-16 text-center text-xs tracking-widest" style={{ color: "#BDBAB6", letterSpacing: "0.2em" }}>LOADING…</div>;
 }
