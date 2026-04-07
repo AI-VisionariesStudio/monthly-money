@@ -12,6 +12,13 @@ function fmt(v: number) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(v);
 }
 
+function fmtEasternTime(d: Date) {
+  const weekday = d.toLocaleDateString("en-US", { timeZone: "America/New_York", weekday: "long" });
+  const date    = d.toLocaleDateString("en-US", { timeZone: "America/New_York", month: "long", day: "numeric", year: "numeric" });
+  const time    = d.toLocaleTimeString("en-US", { timeZone: "America/New_York", hour: "2-digit", minute: "2-digit", hour12: true });
+  return { weekday, date, time };
+}
+
 function getCurrentMonthKey() {
   const n = new Date();
   return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}`;
@@ -50,6 +57,11 @@ export default function DashboardPage() {
   const [addError, setAddError]           = useState<string | null>(null);
   const [addIncomeError, setAddIncomeError] = useState<string | null>(null);
   const [activeTab, setActiveTab]         = useState<"overview" | "income">("overview");
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 60000);
+    return () => clearInterval(t);
+  }, []);
   const [openMonthly, setOpenMonthly]     = useState(false);
   const [openAnnual,  setOpenAnnual]      = useState(false);
   const [openLiens,   setOpenLiens]       = useState(false);
@@ -227,17 +239,27 @@ export default function DashboardPage() {
               <h1 className="text-2xl font-bold text-white tracking-tight">Estate Management</h1>
               <p className="text-sm mt-0.5" style={{ color: "rgba(255,255,255,0.55)" }}>{fmtMonth(monthKey)}</p>
             </div>
-            <div className="flex items-center gap-3">
-              <button onClick={() => router.push(`/monthly/${monthKey}`)}
-                className="px-4 py-2 text-sm font-medium rounded-lg transition-all"
-                style={{ background: "rgba(255,255,255,0.1)", color: "#fff", border: "1px solid rgba(255,255,255,0.2)" }}>
-                Monthly View
-              </button>
-              <button onClick={handleGenerate} disabled={generating}
-                className="px-4 py-2 text-sm font-semibold rounded-lg transition-all disabled:opacity-50"
-                style={{ background: "#fff", color: NAVY }}>
-                {generating ? "Generating…" : `+ ${fmtMonth(getNextMonthKey(monthKey))}`}
-              </button>
+            <div className="flex flex-col items-end gap-3">
+              <div className="text-right">
+                <p className="text-xs font-semibold" style={{ color: "rgba(255,255,255,0.9)" }}>
+                  {fmtEasternTime(now).weekday}, {fmtEasternTime(now).date}
+                </p>
+                <p className="text-lg font-bold tabular-nums" style={{ color: "#ffffff" }}>
+                  {fmtEasternTime(now).time} <span className="text-xs font-normal" style={{ color: "rgba(255,255,255,0.5)" }}>ET</span>
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <button onClick={() => router.push(`/monthly/${monthKey}`)}
+                  className="px-4 py-2 text-sm font-medium rounded-lg transition-all"
+                  style={{ background: "rgba(255,255,255,0.1)", color: "#fff", border: "1px solid rgba(255,255,255,0.2)" }}>
+                  Monthly View
+                </button>
+                <button onClick={handleGenerate} disabled={generating}
+                  className="px-4 py-2 text-sm font-semibold rounded-lg transition-all disabled:opacity-50"
+                  style={{ background: "#fff", color: NAVY }}>
+                  {generating ? "Generating…" : `+ ${fmtMonth(getNextMonthKey(monthKey))}`}
+                </button>
+              </div>
             </div>
           </div>
           <div className="mt-4 h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.15)" }}>
