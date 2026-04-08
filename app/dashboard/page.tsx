@@ -437,9 +437,7 @@ export default function DashboardPage() {
               <div style={{ background: netBalance >= 0 ? SURFACE : "#FDF8F8", border: `1px solid ${BORDER}`, borderTop: `2px solid ${netBalance >= 0 ? MUTED_GRN : MUTED_RED}` }} className="p-5">
                 <p className="text-xs mb-3" style={{ color: WARM_GRAY, letterSpacing: "0.16em" }}>INCOME BALANCE</p>
                 <p className="text-2xl font-light tabular-nums" style={{ color: netBalance >= 0 ? MUTED_GRN : MUTED_RED }}>{fmt(netBalance)}</p>
-                <p className="text-xs mt-2" style={{ color: "#BDBAB6", letterSpacing: "0.06em" }}>
-                  after bills paid ({fmt(totalPaidAll)}) + variable ({fmt(varSpent)})
-                </p>
+                <p className="text-xs mt-2" style={{ color: "#BDBAB6", letterSpacing: "0.06em" }}>remaining balance</p>
               </div>
             </div>
 
