@@ -179,6 +179,8 @@ function EditModal({ expense, onSave, onClose }: {
                 <option value="annual">Annual</option>
                 <option value="lien">Outstanding Obligations</option>
                 <option value="income">Income</option>
+                <option value="groceries">Groceries</option>
+                <option value="restaurants">Restaurants</option>
               </select>
             </div>
           </div>

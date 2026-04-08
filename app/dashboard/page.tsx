@@ -76,6 +76,17 @@ export default function DashboardPage() {
   const [openAnnual,  setOpenAnnual]  = useState(false);
   const [openLiens,   setOpenLiens]   = useState(false);
   const [openGR,      setOpenGR]      = useState(false);
+  const [openGroceries,    setOpenGroceries]    = useState(false);
+  const [openRestaurants,  setOpenRestaurants]  = useState(false);
+  const [showAddGroceries, setShowAddGroceries] = useState(false);
+  const [showAddRestaurants, setShowAddRestaurants] = useState(false);
+  const [addGroceriesForm, setAddGroceriesForm] = useState({ description: "", amount: "", category: "Groceries", date: `${getCurrentMonthKey()}-01`, notes: "" });
+  const [addRestaurantsForm, setAddRestaurantsForm] = useState({ description: "", amount: "", category: "Dining", date: `${getCurrentMonthKey()}-01`, notes: "" });
+  const [addGroceriesError, setAddGroceriesError]     = useState<string | null>(null);
+  const [addRestaurantsError, setAddRestaurantsError] = useState<string | null>(null);
+  const [spendInlineId,    setSpendInlineId]    = useState<string | null>(null);
+  const [spendInlineField, setSpendInlineField] = useState<string | null>(null);
+  const [spendInlineValue, setSpendInlineValue] = useState("");
 
   const fetchExpenses = useCallback(async () => {
     setLoading(true);
@@ -155,6 +166,38 @@ export default function DashboardPage() {
     }
   }
 
+  async function handleAddSpending(
+    ev: React.FormEvent,
+    form: { description: string; amount: string; category: string; date: string; notes: string },
+    frequency: "groceries" | "restaurants",
+    setError: (e: string | null) => void,
+    resetForm: () => void,
+    closeForm: () => void,
+  ) {
+    ev.preventDefault(); setError(null);
+    if (!form.description || !form.amount || !form.date) { setError("All fields required."); return; }
+    const amt = parseFloat(form.amount);
+    if (isNaN(amt)) { setError("Invalid amount."); return; }
+    const res = await fetch("/api/expenses", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ description: form.description, amount: amt, amountPaid: amt, category: form.category, dueDate: form.date, notes: form.notes || null, frequency, monthKey }),
+    });
+    if (res.ok) { closeForm(); resetForm(); await fetchExpenses(); }
+    else { const d = await res.json(); setError(d.error || "Failed."); }
+  }
+
+  async function commitSpendInline(expense: Expense) {
+    if (!spendInlineId || !spendInlineField) return;
+    let update: Partial<Expense> = {};
+    if (spendInlineField === "description" && spendInlineValue.trim()) update = { description: spendInlineValue.trim() };
+    else if (spendInlineField === "category" && spendInlineValue.trim()) update = { category: spendInlineValue.trim() };
+    else if (spendInlineField === "dueDate" && spendInlineValue) update = { dueDate: spendInlineValue };
+    else if (spendInlineField === "amount") { const v = parseFloat(spendInlineValue); if (!isNaN(v)) update = { amount: v, amountPaid: v }; }
+    else if (spendInlineField === "notes") update = { notes: spendInlineValue };
+    if (Object.keys(update).length) await handleUpdate(expense.id, update);
+    setSpendInlineId(null); setSpendInlineField(null);
+  }
+
   async function handleAddIncome(e: React.FormEvent) {
     e.preventDefault(); setAddIncomeError(null);
     if (!addIncomeForm.description || !addIncomeForm.amount || !addIncomeForm.dueDate) {
@@ -185,6 +228,8 @@ export default function DashboardPage() {
   const liens      = expenses.filter(e => e.frequency === "lien");
   const income     = expenses.filter(e => e.frequency === "income");
   const grBusiness = expenses.filter(e => e.category  === "GR Business");
+  const groceries  = expenses.filter(e => e.frequency === "groceries");
+  const restaurants = expenses.filter(e => e.frequency === "restaurants");
 
   // ── Stats ──────────────────────────────────────────────────────────────────
   function effectivePaid(e: Expense) {
@@ -211,10 +256,14 @@ export default function DashboardPage() {
   const iExp  = income.reduce((s, e) => s + e.amount, 0);
   const iRec  = income.reduce((s, e) => s + effectivePaid(e), 0);
 
+  const grSpent  = groceries.reduce((s, e) => s + e.amount, 0);
+  const resSpent = restaurants.reduce((s, e) => s + e.amount, 0);
+  const foodSpent = grSpent + resSpent;
+
   const totalRem    = mRem + aRem + lRem + grRem;
   const totalDue    = mDue + aDue + lDue + grDue;
   const totalPaidAll = mPaid + aPaid + lPaid + grPaid;
-  const netBalance  = iRec - totalRem;
+  const netBalance  = iRec - totalRem - foodSpent;
 
   const nonIncomeExpenses = expenses.filter(e => e.frequency !== "income");
   const pastDueCount = nonIncomeExpenses.filter(e => {
@@ -241,10 +290,12 @@ export default function DashboardPage() {
     insights.push({ text: `Received income covers ${Math.min(coveragePct, 999)}% of current outstanding obligations.`, tone: coveragePct >= 100 ? "positive" : "neutral" });
   if (grPortfolioPct > 0)
     insights.push({ text: `Gracefully Redefined comprises ${grPortfolioPct}% of total portfolio obligations — ${fmt(grRem)} remaining.`, tone: "neutral" });
+  if (foodSpent > 0)
+    insights.push({ text: `Food spending: ${fmt(grSpent)} groceries + ${fmt(resSpent)} dining = ${fmt(foodSpent)} total deducted from income.`, tone: foodSpent > iRec * 0.2 ? "warning" : "neutral" });
   if (netBalance >= 0)
-    insights.push({ text: `Net financial position: ${fmt(netBalance)} surplus after all remaining obligations.`, tone: "positive" });
+    insights.push({ text: `Net financial position: ${fmt(netBalance)} surplus after all obligations and food spending.`, tone: "positive" });
   else
-    insights.push({ text: `Net financial position: ${fmt(Math.abs(netBalance))} shortfall against remaining obligations.`, tone: "warning" });
+    insights.push({ text: `Net financial position: ${fmt(Math.abs(netBalance))} shortfall against obligations and food spending.`, tone: "warning" });
 
   // ── Section header helper ─────────────────────────────────────────────────
   function jumpToSection(sectionId: string, openFn: () => void) {
@@ -527,6 +578,106 @@ export default function DashboardPage() {
                   headerColor={OBSIDIAN} />
               )}
             </SectionBlock>
+
+            {/* ── Section: Groceries ───────────────────────────────────── */}
+            <SectionBlock
+              id="section-groceries"
+              label="GROCERIES"
+              accent="#4A7C59"
+              open={openGroceries}
+              onToggle={() => setOpenGroceries(!openGroceries)}
+              chevron={chevron}
+              action={openGroceries ? (
+                <button onClick={() => setShowAddGroceries(!showAddGroceries)}
+                  className="text-xs tracking-widest px-4 py-2 transition-all"
+                  style={{ background: showAddGroceries ? IVORY : "#4A7C59", color: showAddGroceries ? MUTED_RED : "#fff", border: `1px solid ${showAddGroceries ? BORDER : "#4A7C59"}`, letterSpacing: "0.12em" }}>
+                  {showAddGroceries ? "CANCEL" : "+ ADD"}
+                </button>
+              ) : null}>
+              <MiniStats items={[
+                { label: "ENTRIES", value: String(groceries.length) },
+                { label: "SPENT", value: fmt(grSpent), negative: grSpent > 0 },
+                { label: "INCOME DEDUCTION", value: fmt(grSpent), negative: grSpent > 0 },
+              ]} />
+              {showAddGroceries && (
+                <form onSubmit={ev => handleAddSpending(ev, addGroceriesForm, "groceries", setAddGroceriesError, () => setAddGroceriesForm({ description: "", amount: "", category: "Groceries", date: `${monthKey}-01`, notes: "" }), () => setShowAddGroceries(false))}
+                  className="mb-4 p-6 grid grid-cols-2 md:grid-cols-4 gap-4"
+                  style={{ background: IVORY, border: `1px solid ${BORDER}` }}>
+                  {[
+                    { label: "Store", key: "description", type: "text",   placeholder: "e.g. Walmart" },
+                    { label: "Amount Spent", key: "amount",     type: "number", placeholder: "0.00" },
+                    { label: "Category",    key: "category",    type: "text",   placeholder: "Groceries" },
+                    { label: "Date",        key: "date",        type: "date",   placeholder: "" },
+                  ].map(f => (
+                    <div key={f.key}>
+                      <label className="block text-xs mb-1.5" style={{ color: WARM_GRAY, letterSpacing: "0.12em" }}>{f.label.toUpperCase()}</label>
+                      <input type={f.type} value={(addGroceriesForm as any)[f.key]} placeholder={f.placeholder}
+                        onChange={e => setAddGroceriesForm({ ...addGroceriesForm, [f.key]: e.target.value })}
+                        className={inp} style={inpStyle} />
+                    </div>
+                  ))}
+                  <div className="col-span-2 md:col-span-4 flex items-center gap-4">
+                    {addGroceriesError && <p className="text-xs" style={{ color: MUTED_RED }}>{addGroceriesError}</p>}
+                    <button type="submit" className="px-6 py-2.5 text-xs tracking-widest"
+                      style={{ background: "#4A7C59", color: "#fff", letterSpacing: "0.14em" }}>ADD ENTRY</button>
+                  </div>
+                </form>
+              )}
+              {!loading && <SpendingTable entries={groceries} accent="#4A7C59" descriptionLabel="Store" onUpdate={handleUpdate} onDelete={handleDelete}
+                inlineId={spendInlineId} inlineField={spendInlineField} inlineValue={spendInlineValue}
+                setInlineId={setSpendInlineId} setInlineField={setSpendInlineField} setInlineValue={setSpendInlineValue}
+                commitInline={commitSpendInline} />}
+            </SectionBlock>
+
+            {/* ── Section: Restaurants ─────────────────────────────────── */}
+            <SectionBlock
+              id="section-restaurants"
+              label="RESTAURANTS"
+              accent="#7C4A4A"
+              open={openRestaurants}
+              onToggle={() => setOpenRestaurants(!openRestaurants)}
+              chevron={chevron}
+              action={openRestaurants ? (
+                <button onClick={() => setShowAddRestaurants(!showAddRestaurants)}
+                  className="text-xs tracking-widest px-4 py-2 transition-all"
+                  style={{ background: showAddRestaurants ? IVORY : "#7C4A4A", color: showAddRestaurants ? MUTED_RED : "#fff", border: `1px solid ${showAddRestaurants ? BORDER : "#7C4A4A"}`, letterSpacing: "0.12em" }}>
+                  {showAddRestaurants ? "CANCEL" : "+ ADD"}
+                </button>
+              ) : null}>
+              <MiniStats items={[
+                { label: "ENTRIES", value: String(restaurants.length) },
+                { label: "SPENT", value: fmt(resSpent), negative: resSpent > 0 },
+                { label: "INCOME DEDUCTION", value: fmt(resSpent), negative: resSpent > 0 },
+              ]} />
+              {showAddRestaurants && (
+                <form onSubmit={ev => handleAddSpending(ev, addRestaurantsForm, "restaurants", setAddRestaurantsError, () => setAddRestaurantsForm({ description: "", amount: "", category: "Dining", date: `${monthKey}-01`, notes: "" }), () => setShowAddRestaurants(false))}
+                  className="mb-4 p-6 grid grid-cols-2 md:grid-cols-4 gap-4"
+                  style={{ background: IVORY, border: `1px solid ${BORDER}` }}>
+                  {[
+                    { label: "Restaurant", key: "description", type: "text",   placeholder: "e.g. Chipotle" },
+                    { label: "Amount Spent", key: "amount",     type: "number", placeholder: "0.00" },
+                    { label: "Category",    key: "category",    type: "text",   placeholder: "Dining" },
+                    { label: "Date",        key: "date",        type: "date",   placeholder: "" },
+                  ].map(f => (
+                    <div key={f.key}>
+                      <label className="block text-xs mb-1.5" style={{ color: WARM_GRAY, letterSpacing: "0.12em" }}>{f.label.toUpperCase()}</label>
+                      <input type={f.type} value={(addRestaurantsForm as any)[f.key]} placeholder={f.placeholder}
+                        onChange={e => setAddRestaurantsForm({ ...addRestaurantsForm, [f.key]: e.target.value })}
+                        className={inp} style={inpStyle} />
+                    </div>
+                  ))}
+                  <div className="col-span-2 md:col-span-4 flex items-center gap-4">
+                    {addRestaurantsError && <p className="text-xs" style={{ color: MUTED_RED }}>{addRestaurantsError}</p>}
+                    <button type="submit" className="px-6 py-2.5 text-xs tracking-widest"
+                      style={{ background: "#7C4A4A", color: "#fff", letterSpacing: "0.14em" }}>ADD ENTRY</button>
+                  </div>
+                </form>
+              )}
+              {!loading && <SpendingTable entries={restaurants} accent="#7C4A4A" descriptionLabel="Restaurant" onUpdate={handleUpdate} onDelete={handleDelete}
+                inlineId={spendInlineId} inlineField={spendInlineField} inlineValue={spendInlineValue}
+                setInlineId={setSpendInlineId} setInlineField={setSpendInlineField} setInlineValue={setSpendInlineValue}
+                commitInline={commitSpendInline} />}
+            </SectionBlock>
           </>
         )}
 
@@ -686,10 +837,12 @@ export default function DashboardPage() {
               <p className="text-xs mb-6" style={{ color: WARM_GRAY, letterSpacing: "0.2em" }}>PAYMENTS FULFILLED — {fmtMonth(monthKey).toUpperCase()}</p>
               <div style={{ border: `1px solid ${BORDER}` }}>
                 {[
-                  { label: "Expenses",               paid: mPaid,  due: mDue,  accent: OBSIDIAN,  sectionId: "section-expenses", openFn: () => setOpenMonthly(true) },
-                  { label: "Gracefully Redefined",   paid: grPaid, due: grDue, accent: GR_BEIGE,  sectionId: "section-gr",       openFn: () => setOpenGR(true) },
-                  { label: "Annual Expenses",        paid: aPaid,  due: aDue,  accent: WARM_GRAY, sectionId: "section-annual",   openFn: () => setOpenAnnual(true) },
-                  { label: "Outstanding Obligations",paid: lPaid,  due: lDue,  accent: MUTED_RED, sectionId: "section-liens",    openFn: () => setOpenLiens(true) },
+                  { label: "Expenses",               paid: mPaid,   due: mDue,   accent: OBSIDIAN,  sectionId: "section-expenses",    openFn: () => setOpenMonthly(true) },
+                  { label: "Gracefully Redefined",   paid: grPaid,  due: grDue,  accent: GR_BEIGE,  sectionId: "section-gr",          openFn: () => setOpenGR(true) },
+                  { label: "Annual Expenses",        paid: aPaid,   due: aDue,   accent: WARM_GRAY, sectionId: "section-annual",      openFn: () => setOpenAnnual(true) },
+                  { label: "Outstanding Obligations",paid: lPaid,   due: lDue,   accent: MUTED_RED, sectionId: "section-liens",       openFn: () => setOpenLiens(true) },
+                  { label: "Groceries",              paid: grSpent, due: grSpent, accent: "#4A7C59", sectionId: "section-groceries",   openFn: () => setOpenGroceries(true) },
+                  { label: "Restaurants",            paid: resSpent,due: resSpent,accent: "#7C4A4A", sectionId: "section-restaurants", openFn: () => setOpenRestaurants(true) },
                 ].map((row, i, arr) => {
                   const pct = row.due > 0 ? (row.paid / row.due) * 100 : 0;
                   return (
@@ -721,7 +874,7 @@ export default function DashboardPage() {
               </div>
               <div className="mt-6 px-6 py-4 flex items-center justify-between" style={{ background: OBSIDIAN }}>
                 <span className="text-xs tracking-widest" style={{ color: GOLD, letterSpacing: "0.2em" }}>TOTAL PAID</span>
-                <span className="text-xl font-light tabular-nums" style={{ color: "#fff" }}>{fmt(mPaid + grPaid + aPaid + lPaid)}</span>
+                <span className="text-xl font-light tabular-nums" style={{ color: "#fff" }}>{fmt(mPaid + grPaid + aPaid + lPaid + grSpent + resSpent)}</span>
               </div>
             </div>
           </div>
@@ -732,6 +885,141 @@ export default function DashboardPage() {
 }
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
+
+function SpendingTable({ entries, accent, descriptionLabel = "Description", onUpdate, onDelete, inlineId, inlineField, inlineValue, setInlineId, setInlineField, setInlineValue, commitInline }: {
+  entries: import("@/components/ExpenseTable").Expense[];
+  accent: string;
+  descriptionLabel?: string;
+  onUpdate: (id: string, data: Partial<import("@/components/ExpenseTable").Expense>) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
+  inlineId: string | null; inlineField: string | null; inlineValue: string;
+  setInlineId: (v: string | null) => void; setInlineField: (v: string | null) => void; setInlineValue: (v: string) => void;
+  commitInline: (e: import("@/components/ExpenseTable").Expense) => Promise<void>;
+}) {
+  const OBSIDIAN = "#111111", BORDER = "#E8E3DC", WARM_GRAY = "#6B6460", IVORY = "#FAF9F6", MUTED_RED = "#8B2020";
+  const fmt = (v: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(v);
+  const fmtDate = (s: string) => new Date(s).toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric", timeZone: "UTC" });
+  const total = entries.reduce((s, e) => s + e.amount, 0);
+
+  function startEdit(id: string, field: string, val: string) { setInlineId(id); setInlineField(field); setInlineValue(val); }
+  function cancelEdit() { setInlineId(null); setInlineField(null); }
+
+  if (entries.length === 0) {
+    return <p className="py-8 text-center text-xs tracking-widest" style={{ color: "#BDBAB6", letterSpacing: "0.2em" }}>NO ENTRIES — USE + ADD TO RECORD SPENDING</p>;
+  }
+
+  return (
+    <div style={{ border: `1px solid ${BORDER}` }}>
+      {/* Desktop table */}
+      <div className="hidden md:block overflow-x-auto">
+        <table className="w-full text-sm border-collapse">
+          <thead>
+            <tr style={{ background: accent }}>
+              {[descriptionLabel, "Category", "Date", "Amount Spent", "Notes", ""].map((h, i) => (
+                <th key={i} className="px-3 py-3"
+                  style={{ color: "rgba(255,255,255,0.7)", borderRight: "1px solid rgba(255,255,255,0.08)", textAlign: i === 3 ? "right" : "left", fontSize: 9, letterSpacing: "0.16em", fontWeight: 600 }}>
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {entries.map((e, i) => {
+              const isInline = inlineId === e.id;
+              const rowBg = i % 2 === 0 ? "#FFFFFF" : IVORY;
+              const inpSt = { fontSize: 12, color: OBSIDIAN, background: "transparent", borderBottom: `1px solid ${accent}`, outline: "none", width: "100%" };
+              return (
+                <tr key={e.id} style={{ background: rowBg, borderBottom: `1px solid ${BORDER}` }}>
+                  {/* Description */}
+                  <td className="px-3 py-2.5 max-w-[220px] cursor-pointer" style={{ borderRight: `1px solid ${BORDER}` }}
+                    onClick={() => !isInline && startEdit(e.id, "description", e.description)}>
+                    {isInline && inlineField === "description"
+                      ? <input autoFocus type="text" value={inlineValue} style={inpSt}
+                          onChange={ev => setInlineValue(ev.target.value)}
+                          onBlur={() => commitInline(e)} onKeyDown={ev => { if (ev.key === "Enter") commitInline(e); if (ev.key === "Escape") cancelEdit(); }} />
+                      : <span className="truncate text-xs" style={{ color: OBSIDIAN }}>{e.description}</span>}
+                  </td>
+                  {/* Category */}
+                  <td className="px-3 py-2.5 cursor-pointer" style={{ borderRight: `1px solid ${BORDER}` }}
+                    onClick={() => !isInline && startEdit(e.id, "category", e.category)}>
+                    {isInline && inlineField === "category"
+                      ? <input autoFocus type="text" value={inlineValue} style={inpSt}
+                          onChange={ev => setInlineValue(ev.target.value)}
+                          onBlur={() => commitInline(e)} onKeyDown={ev => { if (ev.key === "Enter") commitInline(e); if (ev.key === "Escape") cancelEdit(); }} />
+                      : <span className="text-xs px-2 py-0.5" style={{ background: IVORY, color: WARM_GRAY, border: `1px solid ${BORDER}` }}>{e.category}</span>}
+                  </td>
+                  {/* Date */}
+                  <td className="px-3 py-2.5 whitespace-nowrap cursor-pointer" style={{ borderRight: `1px solid ${BORDER}` }}
+                    onClick={() => !isInline && startEdit(e.id, "dueDate", new Date(e.dueDate).toISOString().split("T")[0])}>
+                    {isInline && inlineField === "dueDate"
+                      ? <input autoFocus type="date" value={inlineValue} style={{ ...inpSt, width: 130 }}
+                          onChange={ev => setInlineValue(ev.target.value)}
+                          onBlur={() => commitInline(e)} onKeyDown={ev => { if (ev.key === "Enter") commitInline(e); if (ev.key === "Escape") cancelEdit(); }} />
+                      : <span className="font-mono text-xs" style={{ color: WARM_GRAY }}>{fmtDate(e.dueDate)}</span>}
+                  </td>
+                  {/* Amount */}
+                  <td className="px-3 py-2.5 text-right cursor-pointer" style={{ borderRight: `1px solid ${BORDER}` }}
+                    onClick={() => !isInline && startEdit(e.id, "amount", String(e.amount))}>
+                    {isInline && inlineField === "amount"
+                      ? <input autoFocus type="number" step="0.01" value={inlineValue} style={{ ...inpSt, textAlign: "right" }}
+                          onChange={ev => setInlineValue(ev.target.value)}
+                          onBlur={() => commitInline(e)} onKeyDown={ev => { if (ev.key === "Enter") commitInline(e); if (ev.key === "Escape") cancelEdit(); }} />
+                      : <span className="font-mono text-xs font-semibold" style={{ color: accent }}>{fmt(e.amount)}</span>}
+                  </td>
+                  {/* Notes */}
+                  <td className="px-3 py-2.5 cursor-pointer" style={{ borderRight: `1px solid ${BORDER}` }}
+                    onClick={() => !isInline && startEdit(e.id, "notes", e.notes ?? "")}>
+                    {isInline && inlineField === "notes"
+                      ? <input autoFocus type="text" value={inlineValue} style={inpSt}
+                          onChange={ev => setInlineValue(ev.target.value)}
+                          onBlur={() => commitInline(e)} onKeyDown={ev => { if (ev.key === "Enter") commitInline(e); if (ev.key === "Escape") cancelEdit(); }} />
+                      : <span className="text-xs" style={{ color: "#BDBAB6" }}>{e.notes || "—"}</span>}
+                  </td>
+                  {/* Delete */}
+                  <td className="px-3 py-2.5 text-center">
+                    <button onClick={() => onDelete(e.id)} className="text-xs" style={{ color: MUTED_RED }}>Del</button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+          <tfoot>
+            <tr style={{ background: accent }}>
+              <td colSpan={3} className="px-3 py-2.5">
+                <span className="text-xs" style={{ color: "rgba(255,255,255,0.6)", letterSpacing: "0.14em" }}>{entries.length} ENTRIES</span>
+              </td>
+              <td className="px-3 py-2.5 text-right">
+                <span className="font-mono text-sm font-semibold text-white">{fmt(total)}</span>
+              </td>
+              <td colSpan={2} />
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      {/* Mobile cards */}
+      <div className="md:hidden divide-y" style={{ borderColor: BORDER }}>
+        {entries.map(e => (
+          <div key={e.id} className="px-4 py-3 flex items-center justify-between gap-3">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-light truncate" style={{ color: OBSIDIAN }}>{e.description}</p>
+              <p className="text-xs mt-0.5" style={{ color: WARM_GRAY }}>{fmtDate(e.dueDate)} · {e.category}</p>
+              {e.notes && <p className="text-xs mt-0.5" style={{ color: "#BDBAB6" }}>{e.notes}</p>}
+            </div>
+            <div className="flex items-center gap-3 shrink-0">
+              <span className="font-mono text-sm font-semibold" style={{ color: accent }}>{fmt(e.amount)}</span>
+              <button onClick={() => onDelete(e.id)} className="text-xs" style={{ color: MUTED_RED }}>Del</button>
+            </div>
+          </div>
+        ))}
+        <div className="px-4 py-3 flex justify-between" style={{ background: accent }}>
+          <span className="text-xs" style={{ color: "rgba(255,255,255,0.6)", letterSpacing: "0.14em" }}>{entries.length} ENTRIES</span>
+          <span className="font-mono text-sm font-semibold text-white">{fmt(total)}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function SectionBlock({ label, accent, open, onToggle, chevron, children, action, sub, id }: {
   label: string; accent: string; open: boolean; onToggle: () => void;
