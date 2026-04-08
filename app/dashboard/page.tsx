@@ -904,26 +904,25 @@ function SpendingTable({ entries, accent, descriptionLabel = "Description", onUp
   function startEdit(id: string, field: string, val: string) { setInlineId(id); setInlineField(field); setInlineValue(val); }
   function cancelEdit() { setInlineId(null); setInlineField(null); }
 
-  if (entries.length === 0) {
-    return <p className="py-8 text-center text-xs tracking-widest" style={{ color: "#BDBAB6", letterSpacing: "0.2em" }}>NO ENTRIES — USE + ADD TO RECORD SPENDING</p>;
-  }
-
   return (
     <div style={{ border: `1px solid ${BORDER}` }}>
       {/* Desktop table */}
       <div className="hidden md:block overflow-x-auto">
         <table className="w-full text-sm border-collapse">
           <thead>
-            <tr style={{ background: accent }}>
+            <tr style={{ background: OBSIDIAN }}>
               {[descriptionLabel, "Category", "Date", "Amount Spent", "Notes", ""].map((h, i) => (
                 <th key={i} className="px-3 py-3"
-                  style={{ color: "rgba(255,255,255,0.7)", borderRight: "1px solid rgba(255,255,255,0.08)", textAlign: i === 3 ? "right" : "left", fontSize: 9, letterSpacing: "0.16em", fontWeight: 600 }}>
+                  style={{ color: "rgba(255,255,255,0.6)", borderRight: "1px solid rgba(255,255,255,0.06)", textAlign: i === 3 ? "right" : "left", fontSize: 9, letterSpacing: "0.16em", fontWeight: 600 }}>
                   {h}
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
+            {entries.length === 0 && (
+              <tr><td colSpan={6} className="px-4 py-8 text-center text-xs tracking-widest" style={{ color: "#BDBAB6", letterSpacing: "0.2em", background: IVORY }}>NO ENTRIES — USE + ADD TO RECORD SPENDING</td></tr>
+            )}
             {entries.map((e, i) => {
               const isInline = inlineId === e.id;
               const rowBg = i % 2 === 0 ? "#FFFFFF" : IVORY;
