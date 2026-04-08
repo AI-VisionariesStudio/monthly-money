@@ -239,12 +239,13 @@ export default function DashboardPage() {
   const totalPaidAll = mPaid + aPaid + lPaid + grPaid;
   const netBalance  = iRec - totalRem - foodSpent;
 
-  const nonIncomeExpenses = expenses.filter(e => e.frequency !== "income");
-  const pastDueCount = nonIncomeExpenses.filter(e => {
+  // Only bill-type entries have meaningful statuses
+  const billExpenses = expenses.filter(e => ["monthly", "annual", "lien"].includes(e.frequency) || e.category === "GR Business");
+  const pastDueCount = billExpenses.filter(e => {
     const s = computeStatus({ status: e.status, paymentDate: e.paymentDate, dueDate: e.dueDate, amountPaid: e.amountPaid, amount: e.amount });
     return s === "Past Due" || s === "Overdue";
   }).length;
-  const paidCount = nonIncomeExpenses.filter(e => {
+  const paidCount = billExpenses.filter(e => {
     const s = computeStatus({ status: e.status, paymentDate: e.paymentDate, dueDate: e.dueDate, amountPaid: e.amountPaid, amount: e.amount });
     return s === "Paid";
   }).length;
@@ -400,7 +401,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Income summary cards */}
-            <div className="grid grid-cols-2 gap-4 mb-8">
+            <div className="grid grid-cols-2 gap-4 mb-4">
               {[
                 { label: "Income Expected", value: fmt(iExp), sub: `${income.length} sources`,  accent: OBSIDIAN },
                 { label: "Income Received", value: fmt(iRec), sub: `of ${fmt(iExp)} expected`,  accent: MUTED_GRN },
@@ -411,6 +412,27 @@ export default function DashboardPage() {
                   {c.sub && <p className="text-xs mt-2" style={{ color: "#BDBAB6", letterSpacing: "0.06em" }}>{c.sub}</p>}
                 </div>
               ))}
+            </div>
+
+            {/* Groceries · Restaurants · Net Balance cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+              <div style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderTop: "2px solid #4A7C59" }} className="p-5">
+                <p className="text-xs mb-3" style={{ color: WARM_GRAY, letterSpacing: "0.16em" }}>GROCERIES SPENT</p>
+                <p className="text-2xl font-light tabular-nums" style={{ color: "#4A7C59" }}>{fmt(grSpent)}</p>
+                <p className="text-xs mt-2" style={{ color: "#BDBAB6", letterSpacing: "0.06em" }}>{groceries.length} {groceries.length === 1 ? "entry" : "entries"} this month</p>
+              </div>
+              <div style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderTop: "2px solid #7C4A4A" }} className="p-5">
+                <p className="text-xs mb-3" style={{ color: WARM_GRAY, letterSpacing: "0.16em" }}>RESTAURANTS SPENT</p>
+                <p className="text-2xl font-light tabular-nums" style={{ color: "#7C4A4A" }}>{fmt(resSpent)}</p>
+                <p className="text-xs mt-2" style={{ color: "#BDBAB6", letterSpacing: "0.06em" }}>{restaurants.length} {restaurants.length === 1 ? "entry" : "entries"} this month</p>
+              </div>
+              <div style={{ background: netBalance >= 0 ? SURFACE : "#FDF8F8", border: `1px solid ${BORDER}`, borderTop: `2px solid ${netBalance >= 0 ? MUTED_GRN : MUTED_RED}` }} className="p-5">
+                <p className="text-xs mb-3" style={{ color: WARM_GRAY, letterSpacing: "0.16em" }}>INCOME BALANCE</p>
+                <p className="text-2xl font-light tabular-nums" style={{ color: netBalance >= 0 ? MUTED_GRN : MUTED_RED }}>{fmt(netBalance)}</p>
+                <p className="text-xs mt-2" style={{ color: "#BDBAB6", letterSpacing: "0.06em" }}>
+                  after bills ({fmt(totalRem)}) + food ({fmt(foodSpent)})
+                </p>
+              </div>
             </div>
 
             {/* ── AI Insights ─────────────────────────────────────────────── */}
