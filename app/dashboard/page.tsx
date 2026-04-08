@@ -78,12 +78,6 @@ export default function DashboardPage() {
   const [openGR,      setOpenGR]      = useState(false);
   const [openGroceries,    setOpenGroceries]    = useState(false);
   const [openRestaurants,  setOpenRestaurants]  = useState(false);
-  const [showAddGroceries, setShowAddGroceries] = useState(false);
-  const [showAddRestaurants, setShowAddRestaurants] = useState(false);
-  const [addGroceriesForm, setAddGroceriesForm] = useState({ description: "", amount: "", category: "Groceries", date: `${getCurrentMonthKey()}-01`, notes: "" });
-  const [addRestaurantsForm, setAddRestaurantsForm] = useState({ description: "", amount: "", category: "Dining", date: `${getCurrentMonthKey()}-01`, notes: "" });
-  const [addGroceriesError, setAddGroceriesError]     = useState<string | null>(null);
-  const [addRestaurantsError, setAddRestaurantsError] = useState<string | null>(null);
   const [spendInlineId,    setSpendInlineId]    = useState<string | null>(null);
   const [spendInlineField, setSpendInlineField] = useState<string | null>(null);
   const [spendInlineValue, setSpendInlineValue] = useState("");
@@ -164,26 +158,6 @@ export default function DashboardPage() {
     } else {
       const d = await res.json(); setAddError(d.error || "Failed.");
     }
-  }
-
-  async function handleAddSpending(
-    ev: React.FormEvent,
-    form: { description: string; amount: string; category: string; date: string; notes: string },
-    frequency: "groceries" | "restaurants",
-    setError: (e: string | null) => void,
-    resetForm: () => void,
-    closeForm: () => void,
-  ) {
-    ev.preventDefault(); setError(null);
-    if (!form.description || !form.amount || !form.date) { setError("All fields required."); return; }
-    const amt = parseFloat(form.amount);
-    if (isNaN(amt)) { setError("Invalid amount."); return; }
-    const res = await fetch("/api/expenses", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ description: form.description, amount: amt, amountPaid: amt, category: form.category, dueDate: form.date, notes: form.notes || null, frequency, monthKey }),
-    });
-    if (res.ok) { closeForm(); resetForm(); await fetchExpenses(); }
-    else { const d = await res.json(); setError(d.error || "Failed."); }
   }
 
   async function commitSpendInline(expense: Expense) {
@@ -586,39 +560,10 @@ export default function DashboardPage() {
               accent="#4A7C59"
               open={openGroceries}
               onToggle={() => setOpenGroceries(!openGroceries)}
-              chevron={chevron}
-              action={openGroceries ? (
-                <button onClick={() => setShowAddGroceries(!showAddGroceries)}
-                  className="text-xs tracking-widest px-4 py-2 transition-all"
-                  style={{ background: showAddGroceries ? IVORY : "#4A7C59", color: showAddGroceries ? MUTED_RED : "#fff", border: `1px solid ${showAddGroceries ? BORDER : "#4A7C59"}`, letterSpacing: "0.12em" }}>
-                  {showAddGroceries ? "CANCEL" : "+ ADD"}
-                </button>
-              ) : null}>
-              {showAddGroceries && (
-                <form onSubmit={ev => handleAddSpending(ev, addGroceriesForm, "groceries", setAddGroceriesError, () => setAddGroceriesForm({ description: "", amount: "", category: "Groceries", date: `${monthKey}-01`, notes: "" }), () => setShowAddGroceries(false))}
-                  className="mb-4 p-6 grid grid-cols-2 md:grid-cols-4 gap-4"
-                  style={{ background: IVORY, border: `1px solid ${BORDER}` }}>
-                  {[
-                    { label: "Store", key: "description", type: "text",   placeholder: "e.g. Walmart" },
-                    { label: "Amount Spent", key: "amount",     type: "number", placeholder: "0.00" },
-                    { label: "Category",    key: "category",    type: "text",   placeholder: "Groceries" },
-                    { label: "Date",        key: "date",        type: "date",   placeholder: "" },
-                  ].map(f => (
-                    <div key={f.key}>
-                      <label className="block text-xs mb-1.5" style={{ color: WARM_GRAY, letterSpacing: "0.12em" }}>{f.label.toUpperCase()}</label>
-                      <input type={f.type} value={(addGroceriesForm as any)[f.key]} placeholder={f.placeholder}
-                        onChange={e => setAddGroceriesForm({ ...addGroceriesForm, [f.key]: e.target.value })}
-                        className={inp} style={inpStyle} />
-                    </div>
-                  ))}
-                  <div className="col-span-2 md:col-span-4 flex items-center gap-4">
-                    {addGroceriesError && <p className="text-xs" style={{ color: MUTED_RED }}>{addGroceriesError}</p>}
-                    <button type="submit" className="px-6 py-2.5 text-xs tracking-widest"
-                      style={{ background: "#4A7C59", color: "#fff", letterSpacing: "0.14em" }}>ADD ENTRY</button>
-                  </div>
-                </form>
-              )}
-              {!loading && <SpendingTable entries={groceries} accent="#4A7C59" descriptionLabel="Store" onUpdate={handleUpdate} onDelete={handleDelete}
+              chevron={chevron}>
+              {!loading && <SpendingTable entries={groceries} accent="#4A7C59" descriptionLabel="Store"
+                monthKey={monthKey} frequency="groceries"
+                onUpdate={handleUpdate} onDelete={handleDelete} onRefresh={fetchExpenses}
                 inlineId={spendInlineId} inlineField={spendInlineField} inlineValue={spendInlineValue}
                 setInlineId={setSpendInlineId} setInlineField={setSpendInlineField} setInlineValue={setSpendInlineValue}
                 commitInline={commitSpendInline} />}
@@ -631,39 +576,10 @@ export default function DashboardPage() {
               accent="#7C4A4A"
               open={openRestaurants}
               onToggle={() => setOpenRestaurants(!openRestaurants)}
-              chevron={chevron}
-              action={openRestaurants ? (
-                <button onClick={() => setShowAddRestaurants(!showAddRestaurants)}
-                  className="text-xs tracking-widest px-4 py-2 transition-all"
-                  style={{ background: showAddRestaurants ? IVORY : "#7C4A4A", color: showAddRestaurants ? MUTED_RED : "#fff", border: `1px solid ${showAddRestaurants ? BORDER : "#7C4A4A"}`, letterSpacing: "0.12em" }}>
-                  {showAddRestaurants ? "CANCEL" : "+ ADD"}
-                </button>
-              ) : null}>
-              {showAddRestaurants && (
-                <form onSubmit={ev => handleAddSpending(ev, addRestaurantsForm, "restaurants", setAddRestaurantsError, () => setAddRestaurantsForm({ description: "", amount: "", category: "Dining", date: `${monthKey}-01`, notes: "" }), () => setShowAddRestaurants(false))}
-                  className="mb-4 p-6 grid grid-cols-2 md:grid-cols-4 gap-4"
-                  style={{ background: IVORY, border: `1px solid ${BORDER}` }}>
-                  {[
-                    { label: "Restaurant", key: "description", type: "text",   placeholder: "e.g. Chipotle" },
-                    { label: "Amount Spent", key: "amount",     type: "number", placeholder: "0.00" },
-                    { label: "Category",    key: "category",    type: "text",   placeholder: "Dining" },
-                    { label: "Date",        key: "date",        type: "date",   placeholder: "" },
-                  ].map(f => (
-                    <div key={f.key}>
-                      <label className="block text-xs mb-1.5" style={{ color: WARM_GRAY, letterSpacing: "0.12em" }}>{f.label.toUpperCase()}</label>
-                      <input type={f.type} value={(addRestaurantsForm as any)[f.key]} placeholder={f.placeholder}
-                        onChange={e => setAddRestaurantsForm({ ...addRestaurantsForm, [f.key]: e.target.value })}
-                        className={inp} style={inpStyle} />
-                    </div>
-                  ))}
-                  <div className="col-span-2 md:col-span-4 flex items-center gap-4">
-                    {addRestaurantsError && <p className="text-xs" style={{ color: MUTED_RED }}>{addRestaurantsError}</p>}
-                    <button type="submit" className="px-6 py-2.5 text-xs tracking-widest"
-                      style={{ background: "#7C4A4A", color: "#fff", letterSpacing: "0.14em" }}>ADD ENTRY</button>
-                  </div>
-                </form>
-              )}
-              {!loading && <SpendingTable entries={restaurants} accent="#7C4A4A" descriptionLabel="Restaurant" onUpdate={handleUpdate} onDelete={handleDelete}
+              chevron={chevron}>
+              {!loading && <SpendingTable entries={restaurants} accent="#7C4A4A" descriptionLabel="Restaurant"
+                monthKey={monthKey} frequency="restaurants"
+                onUpdate={handleUpdate} onDelete={handleDelete} onRefresh={fetchExpenses}
                 inlineId={spendInlineId} inlineField={spendInlineField} inlineValue={spendInlineValue}
                 setInlineId={setSpendInlineId} setInlineField={setSpendInlineField} setInlineValue={setSpendInlineValue}
                 commitInline={commitSpendInline} />}
@@ -876,12 +792,15 @@ export default function DashboardPage() {
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
-function SpendingTable({ entries, accent, descriptionLabel = "Description", onUpdate, onDelete, inlineId, inlineField, inlineValue, setInlineId, setInlineField, setInlineValue, commitInline }: {
+function SpendingTable({ entries, accent, descriptionLabel = "Description", monthKey, frequency, onUpdate, onDelete, onRefresh, inlineId, inlineField, inlineValue, setInlineId, setInlineField, setInlineValue, commitInline }: {
   entries: import("@/components/ExpenseTable").Expense[];
   accent: string;
   descriptionLabel?: string;
+  monthKey: string;
+  frequency: "groceries" | "restaurants";
   onUpdate: (id: string, data: Partial<import("@/components/ExpenseTable").Expense>) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
+  onRefresh: () => Promise<void>;
   inlineId: string | null; inlineField: string | null; inlineValue: string;
   setInlineId: (v: string | null) => void; setInlineField: (v: string | null) => void; setInlineValue: (v: string) => void;
   commitInline: (e: import("@/components/ExpenseTable").Expense) => Promise<void>;
@@ -889,15 +808,39 @@ function SpendingTable({ entries, accent, descriptionLabel = "Description", onUp
   const OBSIDIAN = "#111111", BORDER = "#E8E3DC", WARM_GRAY = "#6B6460", IVORY = "#FAF9F6", MUTED_RED = "#8B2020";
   const fmt = (v: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(v);
   const fmtDate = (s: string) => new Date(s).toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric", timeZone: "UTC" });
-  const total = entries.reduce((s, e) => s + e.amount, 0);
+
+  const [addDesc,  setAddDesc]  = useState("");
+  const [addDate,  setAddDate]  = useState(`${monthKey}-01`);
+  const [addAmt,   setAddAmt]   = useState("");
+  const [addNotes, setAddNotes] = useState("");
+  const [adding,   setAdding]   = useState(false);
+  const [addErr,   setAddErr]   = useState<string | null>(null);
+
+  async function handleAdd(ev: React.FormEvent) {
+    ev.preventDefault();
+    setAddErr(null);
+    if (!addDesc.trim() || !addAmt || !addDate) { setAddErr("Store/restaurant, date and amount are required."); return; }
+    const amt = parseFloat(addAmt);
+    if (isNaN(amt) || amt <= 0) { setAddErr("Enter a valid amount."); return; }
+    setAdding(true);
+    const res = await fetch("/api/expenses", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ description: addDesc.trim(), amount: amt, amountPaid: amt, category: frequency === "groceries" ? "Groceries" : "Dining", dueDate: addDate, notes: addNotes || null, frequency, monthKey }),
+    });
+    setAdding(false);
+    if (res.ok) { setAddDesc(""); setAddAmt(""); setAddNotes(""); await onRefresh(); }
+    else { const d = await res.json(); setAddErr(d.error || "Failed to add."); }
+  }
 
   function startEdit(id: string, field: string, val: string) { setInlineId(id); setInlineField(field); setInlineValue(val); }
   function cancelEdit() { setInlineId(null); setInlineField(null); }
 
+  const inpBase = { background: IVORY, border: `1px solid ${BORDER}`, color: OBSIDIAN, outline: "none", fontSize: 12, padding: "4px 8px", width: "100%" };
+  const inpEdit = { fontSize: 12, color: OBSIDIAN, background: "transparent", borderBottom: `1px solid ${accent}`, outline: "none", width: "100%" };
+
   return (
     <div style={{ border: `1px solid ${BORDER}` }}>
-      {/* Desktop table */}
-      <div className="hidden md:block overflow-x-auto">
+      <div className="overflow-x-auto">
         <table className="w-full text-sm border-collapse">
           <thead>
             <tr style={{ background: OBSIDIAN }}>
@@ -910,52 +853,73 @@ function SpendingTable({ entries, accent, descriptionLabel = "Description", onUp
             </tr>
           </thead>
           <tbody>
-            {entries.length === 0 && (
-              <tr><td colSpan={5} className="px-4 py-8 text-center text-xs tracking-widest" style={{ color: "#BDBAB6", letterSpacing: "0.2em", background: IVORY }}>NO ENTRIES — USE + ADD TO RECORD SPENDING</td></tr>
+            {/* Always-visible add row */}
+            <tr style={{ background: "#F5F3F0", borderBottom: `1px solid ${BORDER}` }}>
+              <td className="px-3 py-2" style={{ borderRight: `1px solid ${BORDER}` }}>
+                <input type="text" placeholder={descriptionLabel} value={addDesc} onChange={e => setAddDesc(e.target.value)}
+                  style={inpBase} />
+              </td>
+              <td className="px-3 py-2" style={{ borderRight: `1px solid ${BORDER}` }}>
+                <input type="date" value={addDate} onChange={e => setAddDate(e.target.value)}
+                  style={inpBase} />
+              </td>
+              <td className="px-3 py-2" style={{ borderRight: `1px solid ${BORDER}` }}>
+                <input type="number" step="0.01" min="0" placeholder="0.00" value={addAmt} onChange={e => setAddAmt(e.target.value)}
+                  style={{ ...inpBase, textAlign: "right" }} />
+              </td>
+              <td className="px-3 py-2" style={{ borderRight: `1px solid ${BORDER}` }}>
+                <input type="text" placeholder="Notes (optional)" value={addNotes} onChange={e => setAddNotes(e.target.value)}
+                  style={inpBase} />
+              </td>
+              <td className="px-3 py-2 text-center">
+                <button onClick={handleAdd} disabled={adding}
+                  className="text-xs px-3 py-1 disabled:opacity-50"
+                  style={{ background: OBSIDIAN, color: "#fff", letterSpacing: "0.08em" }}>
+                  {adding ? "…" : "ADD"}
+                </button>
+              </td>
+            </tr>
+            {addErr && (
+              <tr><td colSpan={5} className="px-3 py-1 text-xs" style={{ color: MUTED_RED, background: "#FDF8F8" }}>{addErr}</td></tr>
             )}
+            {/* Existing entries */}
             {entries.map((e, i) => {
               const isInline = inlineId === e.id;
               const rowBg = i % 2 === 0 ? "#FFFFFF" : IVORY;
-              const inpSt = { fontSize: 12, color: OBSIDIAN, background: "transparent", borderBottom: `1px solid ${accent}`, outline: "none", width: "100%" };
               return (
                 <tr key={e.id} style={{ background: rowBg, borderBottom: `1px solid ${BORDER}` }}>
-                  {/* Description */}
                   <td className="px-3 py-2.5 max-w-[220px] cursor-pointer" style={{ borderRight: `1px solid ${BORDER}` }}
                     onClick={() => !isInline && startEdit(e.id, "description", e.description)}>
                     {isInline && inlineField === "description"
-                      ? <input autoFocus type="text" value={inlineValue} style={inpSt}
+                      ? <input autoFocus type="text" value={inlineValue} style={inpEdit}
                           onChange={ev => setInlineValue(ev.target.value)}
                           onBlur={() => commitInline(e)} onKeyDown={ev => { if (ev.key === "Enter") commitInline(e); if (ev.key === "Escape") cancelEdit(); }} />
                       : <span className="truncate text-xs" style={{ color: OBSIDIAN }}>{e.description}</span>}
                   </td>
-                  {/* Date */}
                   <td className="px-3 py-2.5 whitespace-nowrap cursor-pointer" style={{ borderRight: `1px solid ${BORDER}` }}
                     onClick={() => !isInline && startEdit(e.id, "dueDate", new Date(e.dueDate).toISOString().split("T")[0])}>
                     {isInline && inlineField === "dueDate"
-                      ? <input autoFocus type="date" value={inlineValue} style={{ ...inpSt, width: 130 }}
+                      ? <input autoFocus type="date" value={inlineValue} style={{ ...inpEdit, width: 130 }}
                           onChange={ev => setInlineValue(ev.target.value)}
                           onBlur={() => commitInline(e)} onKeyDown={ev => { if (ev.key === "Enter") commitInline(e); if (ev.key === "Escape") cancelEdit(); }} />
                       : <span className="font-mono text-xs" style={{ color: WARM_GRAY }}>{fmtDate(e.dueDate)}</span>}
                   </td>
-                  {/* Amount */}
                   <td className="px-3 py-2.5 text-right cursor-pointer" style={{ borderRight: `1px solid ${BORDER}` }}
                     onClick={() => !isInline && startEdit(e.id, "amount", String(e.amount))}>
                     {isInline && inlineField === "amount"
-                      ? <input autoFocus type="number" step="0.01" value={inlineValue} style={{ ...inpSt, textAlign: "right" }}
+                      ? <input autoFocus type="number" step="0.01" value={inlineValue} style={{ ...inpEdit, textAlign: "right" }}
                           onChange={ev => setInlineValue(ev.target.value)}
                           onBlur={() => commitInline(e)} onKeyDown={ev => { if (ev.key === "Enter") commitInline(e); if (ev.key === "Escape") cancelEdit(); }} />
                       : <span className="font-mono text-xs font-semibold" style={{ color: accent }}>{fmt(e.amount)}</span>}
                   </td>
-                  {/* Notes */}
                   <td className="px-3 py-2.5 cursor-pointer" style={{ borderRight: `1px solid ${BORDER}` }}
                     onClick={() => !isInline && startEdit(e.id, "notes", e.notes ?? "")}>
                     {isInline && inlineField === "notes"
-                      ? <input autoFocus type="text" value={inlineValue} style={inpSt}
+                      ? <input autoFocus type="text" value={inlineValue} style={inpEdit}
                           onChange={ev => setInlineValue(ev.target.value)}
                           onBlur={() => commitInline(e)} onKeyDown={ev => { if (ev.key === "Enter") commitInline(e); if (ev.key === "Escape") cancelEdit(); }} />
                       : <span className="text-xs" style={{ color: "#BDBAB6" }}>{e.notes || "—"}</span>}
                   </td>
-                  {/* Delete */}
                   <td className="px-3 py-2.5 text-center">
                     <button onClick={() => onDelete(e.id)} className="text-xs" style={{ color: MUTED_RED }}>Del</button>
                   </td>
@@ -963,28 +927,33 @@ function SpendingTable({ entries, accent, descriptionLabel = "Description", onUp
               );
             })}
           </tbody>
-          <tfoot>
-            <tr style={{ background: OBSIDIAN }}>
-              <td colSpan={2} className="px-3 py-2.5">
-                <span className="text-xs" style={{ color: "rgba(255,255,255,0.4)", letterSpacing: "0.14em" }}>{entries.length} ENTRIES</span>
-              </td>
-              <td className="px-3 py-2.5 text-right">
-                <span className="font-mono text-sm font-semibold text-white">{fmt(total)}</span>
-              </td>
-              <td colSpan={2} />
-            </tr>
-          </tfoot>
         </table>
       </div>
 
-      {/* Mobile cards */}
-      <div className="md:hidden divide-y" style={{ borderColor: BORDER }}>
+      {/* Mobile add form */}
+      <div className="md:hidden px-4 py-3 flex flex-col gap-2" style={{ borderTop: `1px solid ${BORDER}`, background: "#F5F3F0" }}>
+        <input type="text" placeholder={descriptionLabel} value={addDesc} onChange={e => setAddDesc(e.target.value)}
+          className="w-full px-3 py-2 text-sm" style={inpBase} />
+        <div className="flex gap-2">
+          <input type="date" value={addDate} onChange={e => setAddDate(e.target.value)}
+            className="flex-1 px-3 py-2 text-sm" style={inpBase} />
+          <input type="number" step="0.01" min="0" placeholder="0.00" value={addAmt} onChange={e => setAddAmt(e.target.value)}
+            className="w-28 px-3 py-2 text-sm" style={inpBase} />
+        </div>
+        <div className="flex gap-2">
+          <input type="text" placeholder="Notes (optional)" value={addNotes} onChange={e => setAddNotes(e.target.value)}
+            className="flex-1 px-3 py-2 text-sm" style={inpBase} />
+          <button onClick={handleAdd} disabled={adding} className="px-4 py-2 text-xs disabled:opacity-50"
+            style={{ background: OBSIDIAN, color: "#fff" }}>{adding ? "…" : "ADD"}</button>
+        </div>
+        {addErr && <p className="text-xs" style={{ color: MUTED_RED }}>{addErr}</p>}
+        {/* Mobile entries */}
         {entries.map(e => (
-          <div key={e.id} className="px-4 py-3 flex items-center justify-between gap-3">
+          <div key={e.id} className="flex items-center justify-between gap-3 py-2" style={{ borderTop: `1px solid ${BORDER}` }}>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-light truncate" style={{ color: OBSIDIAN }}>{e.description}</p>
-              <p className="text-xs mt-0.5" style={{ color: WARM_GRAY }}>{fmtDate(e.dueDate)} · {e.category}</p>
-              {e.notes && <p className="text-xs mt-0.5" style={{ color: "#BDBAB6" }}>{e.notes}</p>}
+              <p className="text-xs mt-0.5" style={{ color: WARM_GRAY }}>{fmtDate(e.dueDate)}</p>
+              {e.notes && <p className="text-xs" style={{ color: "#BDBAB6" }}>{e.notes}</p>}
             </div>
             <div className="flex items-center gap-3 shrink-0">
               <span className="font-mono text-sm font-semibold" style={{ color: accent }}>{fmt(e.amount)}</span>
@@ -992,10 +961,6 @@ function SpendingTable({ entries, accent, descriptionLabel = "Description", onUp
             </div>
           </div>
         ))}
-        <div className="px-4 py-3 flex justify-between" style={{ background: accent }}>
-          <span className="text-xs" style={{ color: "rgba(255,255,255,0.6)", letterSpacing: "0.14em" }}>{entries.length} ENTRIES</span>
-          <span className="font-mono text-sm font-semibold text-white">{fmt(total)}</span>
-        </div>
       </div>
     </div>
   );
