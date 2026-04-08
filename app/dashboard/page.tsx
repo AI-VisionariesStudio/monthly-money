@@ -594,11 +594,6 @@ export default function DashboardPage() {
                   {showAddGroceries ? "CANCEL" : "+ ADD"}
                 </button>
               ) : null}>
-              <MiniStats items={[
-                { label: "ENTRIES", value: String(groceries.length) },
-                { label: "SPENT", value: fmt(grSpent), negative: grSpent > 0 },
-                { label: "INCOME DEDUCTION", value: fmt(grSpent), negative: grSpent > 0 },
-              ]} />
               {showAddGroceries && (
                 <form onSubmit={ev => handleAddSpending(ev, addGroceriesForm, "groceries", setAddGroceriesError, () => setAddGroceriesForm({ description: "", amount: "", category: "Groceries", date: `${monthKey}-01`, notes: "" }), () => setShowAddGroceries(false))}
                   className="mb-4 p-6 grid grid-cols-2 md:grid-cols-4 gap-4"
@@ -644,11 +639,6 @@ export default function DashboardPage() {
                   {showAddRestaurants ? "CANCEL" : "+ ADD"}
                 </button>
               ) : null}>
-              <MiniStats items={[
-                { label: "ENTRIES", value: String(restaurants.length) },
-                { label: "SPENT", value: fmt(resSpent), negative: resSpent > 0 },
-                { label: "INCOME DEDUCTION", value: fmt(resSpent), negative: resSpent > 0 },
-              ]} />
               {showAddRestaurants && (
                 <form onSubmit={ev => handleAddSpending(ev, addRestaurantsForm, "restaurants", setAddRestaurantsError, () => setAddRestaurantsForm({ description: "", amount: "", category: "Dining", date: `${monthKey}-01`, notes: "" }), () => setShowAddRestaurants(false))}
                   className="mb-4 p-6 grid grid-cols-2 md:grid-cols-4 gap-4"
@@ -911,9 +901,9 @@ function SpendingTable({ entries, accent, descriptionLabel = "Description", onUp
         <table className="w-full text-sm border-collapse">
           <thead>
             <tr style={{ background: OBSIDIAN }}>
-              {[descriptionLabel, "Category", "Date", "Amount Spent", "Notes", ""].map((h, i) => (
+              {[descriptionLabel, "Date", "Amount Spent", "Notes", ""].map((h, i) => (
                 <th key={i} className="px-3 py-3"
-                  style={{ color: "rgba(255,255,255,0.6)", borderRight: "1px solid rgba(255,255,255,0.06)", textAlign: i === 3 ? "right" : "left", fontSize: 9, letterSpacing: "0.16em", fontWeight: 600 }}>
+                  style={{ color: "rgba(255,255,255,0.6)", borderRight: "1px solid rgba(255,255,255,0.06)", textAlign: i === 2 ? "right" : "left", fontSize: 9, letterSpacing: "0.16em", fontWeight: 600 }}>
                   {h}
                 </th>
               ))}
@@ -921,7 +911,7 @@ function SpendingTable({ entries, accent, descriptionLabel = "Description", onUp
           </thead>
           <tbody>
             {entries.length === 0 && (
-              <tr><td colSpan={6} className="px-4 py-8 text-center text-xs tracking-widest" style={{ color: "#BDBAB6", letterSpacing: "0.2em", background: IVORY }}>NO ENTRIES — USE + ADD TO RECORD SPENDING</td></tr>
+              <tr><td colSpan={5} className="px-4 py-8 text-center text-xs tracking-widest" style={{ color: "#BDBAB6", letterSpacing: "0.2em", background: IVORY }}>NO ENTRIES — USE + ADD TO RECORD SPENDING</td></tr>
             )}
             {entries.map((e, i) => {
               const isInline = inlineId === e.id;
@@ -937,15 +927,6 @@ function SpendingTable({ entries, accent, descriptionLabel = "Description", onUp
                           onChange={ev => setInlineValue(ev.target.value)}
                           onBlur={() => commitInline(e)} onKeyDown={ev => { if (ev.key === "Enter") commitInline(e); if (ev.key === "Escape") cancelEdit(); }} />
                       : <span className="truncate text-xs" style={{ color: OBSIDIAN }}>{e.description}</span>}
-                  </td>
-                  {/* Category */}
-                  <td className="px-3 py-2.5 cursor-pointer" style={{ borderRight: `1px solid ${BORDER}` }}
-                    onClick={() => !isInline && startEdit(e.id, "category", e.category)}>
-                    {isInline && inlineField === "category"
-                      ? <input autoFocus type="text" value={inlineValue} style={inpSt}
-                          onChange={ev => setInlineValue(ev.target.value)}
-                          onBlur={() => commitInline(e)} onKeyDown={ev => { if (ev.key === "Enter") commitInline(e); if (ev.key === "Escape") cancelEdit(); }} />
-                      : <span className="text-xs px-2 py-0.5" style={{ background: IVORY, color: WARM_GRAY, border: `1px solid ${BORDER}` }}>{e.category}</span>}
                   </td>
                   {/* Date */}
                   <td className="px-3 py-2.5 whitespace-nowrap cursor-pointer" style={{ borderRight: `1px solid ${BORDER}` }}
@@ -983,9 +964,9 @@ function SpendingTable({ entries, accent, descriptionLabel = "Description", onUp
             })}
           </tbody>
           <tfoot>
-            <tr style={{ background: accent }}>
-              <td colSpan={3} className="px-3 py-2.5">
-                <span className="text-xs" style={{ color: "rgba(255,255,255,0.6)", letterSpacing: "0.14em" }}>{entries.length} ENTRIES</span>
+            <tr style={{ background: OBSIDIAN }}>
+              <td colSpan={2} className="px-3 py-2.5">
+                <span className="text-xs" style={{ color: "rgba(255,255,255,0.4)", letterSpacing: "0.14em" }}>{entries.length} ENTRIES</span>
               </td>
               <td className="px-3 py-2.5 text-right">
                 <span className="font-mono text-sm font-semibold text-white">{fmt(total)}</span>
