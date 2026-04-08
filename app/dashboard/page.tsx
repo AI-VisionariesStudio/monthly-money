@@ -460,7 +460,7 @@ export default function DashboardPage() {
                 {/* Gauge */}
                 <div className="flex flex-col items-center justify-center px-8 py-6 shrink-0 border-t md:border-t-0 md:border-l" style={{ borderColor: BORDER }}>
                   <p className="text-xs mb-4 tracking-widest" style={{ color: WARM_GRAY, letterSpacing: "0.2em" }}>INCOME UTILIZATION</p>
-                  <FinancialGauge pct={iRec > 0 ? Math.min((totalPaidAll + varSpent) / iRec * 100, 150) : 0} />
+                  <FinancialGauge pct={iRec > 0 ? (totalPaidAll + varSpent) / iRec * 100 : 0} />
                 </div>
               </div>
             </div>
@@ -1034,90 +1034,80 @@ function SpendingTable({ entries, accent, descriptionLabel = "Description", mont
 }
 
 function FinancialGauge({ pct }: { pct: number }) {
-  const cx = 100, cy = 108, r = 80, sw = 13;
-  const clamped = Math.min(Math.max(pct, 0), 150);
+  // Half-circle gauge: 180° (left) = 0%, 0° (right) = 100%
+  const cx = 100, cy = 90, r = 68, sw = 11;
+  const display = Math.round(pct);
+  const clamped = Math.min(Math.max(pct, 0), 100);
 
-  function pt(angleDeg: number, radius = r) {
-    const rad = (angleDeg * Math.PI) / 180;
+  function pt(deg: number, radius = r) {
+    const rad = (deg * Math.PI) / 180;
     return { x: cx + radius * Math.cos(rad), y: cy - radius * Math.sin(rad) };
   }
 
+  // sweep=0 → counterclockwise in screen (y-down) = decreasing angle = correct for our gauge
   function arc(a1: number, a2: number, radius = r) {
     const s = pt(a1, radius), e = pt(a2, radius);
     const large = a1 - a2 > 180 ? 1 : 0;
-    return `M ${s.x.toFixed(2)} ${s.y.toFixed(2)} A ${radius} ${radius} 0 ${large} 0 ${e.x.toFixed(2)} ${e.y.toFixed(2)}`;
+    return `M ${s.x.toFixed(1)} ${s.y.toFixed(1)} A ${radius} ${radius} 0 ${large} 0 ${e.x.toFixed(1)} ${e.y.toFixed(1)}`;
   }
 
-  // 180° = 0%,  0° = 100%,  extended to -90° = 150%
-  // zone boundaries as angles: 60% → 72°, 80% → 36°, 100% → 0°
-  const maxAngle = 180; // 0%
-  const minAngle = -90; // 150%
-  const totalSpan = maxAngle - minAngle; // 270°
-  const pctToAngle = (p: number) => maxAngle - (p / 150) * totalSpan;
+  const toAngle = (p: number) => 180 - (p / 100) * 180;
+  const needleAngle = toAngle(clamped);
+  const tip = pt(needleAngle, r - sw - 5);
 
-  const currentAngle = pctToAngle(clamped);
-  const angle60  = pctToAngle(60);   // 72°
-  const angle80  = pctToAngle(80);   // 36°
-  const angle100 = pctToAngle(100);  // 0°
-
-  const status = clamped < 60 ? "BALANCED" : clamped < 80 ? "ELEVATED" : clamped < 100 ? "CRITICAL" : "OVERDRAWN";
-  const statusColor = clamped < 60 ? "#2A6B4A" : clamped < 80 ? "#B8976A" : "#8B2020";
-
-  // Needle tip
-  const tip = pt(currentAngle, r - sw - 2);
+  const status      = pct < 60 ? "BALANCED"  : pct < 80 ? "ELEVATED"  : pct < 100 ? "CRITICAL"  : "OVERDRAWN";
+  const statusColor = pct < 60 ? "#2A6B4A"   : pct < 80 ? "#B8976A"   : "#8B2020";
 
   return (
-    <div style={{ width: "100%", maxWidth: 240 }}>
-      <svg viewBox="0 0 200 130" style={{ width: "100%", overflow: "visible" }}>
-        {/* Track background */}
-        <path d={arc(180, -90)} fill="none" stroke="#E8E3DC" strokeWidth={sw} strokeLinecap="round" />
+    <div style={{ width: 220 }}>
+      <svg viewBox="0 0 200 105" width="220" height="105">
+        {/* Grey track */}
+        <path d={arc(180, 0)} fill="none" stroke="#E8E3DC" strokeWidth={sw} strokeLinecap="round" />
 
-        {/* Zone segments (dim) */}
-        <path d={arc(180, angle60)}   fill="none" stroke="#2A6B4A" strokeWidth={sw} opacity={0.18} />
-        <path d={arc(angle60, angle80)} fill="none" stroke="#B8976A" strokeWidth={sw} opacity={0.18} />
-        <path d={arc(angle80, angle100)} fill="none" stroke="#8B2020" strokeWidth={sw} opacity={0.18} />
-        <path d={arc(angle100, -90)}  fill="none" stroke="#8B2020" strokeWidth={sw} opacity={0.30} />
+        {/* Coloured zone bands */}
+        <path d={arc(180, toAngle(60))}           fill="none" stroke="#2A6B4A" strokeWidth={sw} opacity={0.22} />
+        <path d={arc(toAngle(60), toAngle(80))}   fill="none" stroke="#B8976A" strokeWidth={sw} opacity={0.22} />
+        <path d={arc(toAngle(80), 0)}             fill="none" stroke="#8B2020" strokeWidth={sw} opacity={0.22} />
 
-        {/* Active fill */}
+        {/* Active progress */}
         {clamped > 0 && (
-          <path d={arc(180, currentAngle)} fill="none" stroke={statusColor} strokeWidth={sw - 4} strokeLinecap="round" />
+          <path d={arc(180, needleAngle)} fill="none" stroke={statusColor} strokeWidth={sw - 3} strokeLinecap="round" />
         )}
 
-        {/* Tick marks at zone boundaries */}
-        {[{ a: angle60, c: "#B8976A" }, { a: angle80, c: "#8B2020" }, { a: angle100, c: "#8B2020" }].map(({ a, c }, i) => {
-          const outer = pt(a, r + 4); const inner = pt(a, r - sw - 6);
-          return <line key={i} x1={inner.x} y1={inner.y} x2={outer.x} y2={outer.y} stroke={c} strokeWidth={1.5} opacity={0.5} />;
+        {/* Zone divider ticks */}
+        {[toAngle(60), toAngle(80)].map((a, i) => {
+          const o = pt(a, r + 3), inn = pt(a, r - sw - 3);
+          return <line key={i} x1={inn.x} y1={inn.y} x2={o.x} y2={o.y} stroke="#C8C4BF" strokeWidth={1.5} />;
         })}
 
         {/* Needle */}
         <line x1={cx} y1={cy} x2={tip.x} y2={tip.y} stroke={OBSIDIAN} strokeWidth={1.5} strokeLinecap="round" />
         <circle cx={cx} cy={cy} r={5} fill={OBSIDIAN} />
-        <circle cx={cx} cy={cy} r={3} fill={SURFACE} />
+        <circle cx={cx} cy={cy} r={2.5} fill={SURFACE} />
 
-        {/* Percentage */}
-        <text x={cx} y={cy - 14} textAnchor="middle" style={{ fontSize: 26, fontWeight: 300, fill: statusColor, fontFamily: "'Helvetica Neue', sans-serif" }}>
-          {Math.round(clamped)}%
+        {/* Text */}
+        <text x={cx} y={cy - 16} textAnchor="middle"
+          style={{ fontSize: 28, fontWeight: 300, fill: statusColor, fontFamily: "'Helvetica Neue', Helvetica, sans-serif" }}>
+          {display}%
         </text>
-        <text x={cx} y={cy - 2} textAnchor="middle" style={{ fontSize: 7, letterSpacing: "0.22em", fill: statusColor, fontFamily: "'Helvetica Neue', sans-serif" }}>
+        <text x={cx} y={cy - 3} textAnchor="middle"
+          style={{ fontSize: 7, letterSpacing: "0.22em", fill: statusColor, fontFamily: "'Helvetica Neue', Helvetica, sans-serif" }}>
           {status}
         </text>
 
         {/* Edge labels */}
-        <text x={pt(180, r + 14).x} y={pt(180, r + 14).y + 3} textAnchor="middle" style={{ fontSize: 6, fill: "#BDBAB6", letterSpacing: "0.08em" }}>0%</text>
-        <text x={pt(-90, r + 14).x} y={pt(-90, r + 14).y + 3} textAnchor="middle" style={{ fontSize: 6, fill: "#BDBAB6", letterSpacing: "0.08em" }}>150%</text>
-        <text x={pt(angle100, r + 14).x} y={pt(angle100, r + 14).y - 2} textAnchor="middle" style={{ fontSize: 6, fill: "#8B2020", letterSpacing: "0.06em" }}>100%</text>
+        <text x={pt(180, r + 12).x + 2} y={pt(180, r + 12).y + 4} textAnchor="middle"
+          style={{ fontSize: 7, fill: "#BDBAB6" }}>0%</text>
+        <text x={pt(0, r + 12).x - 2} y={pt(0, r + 12).y + 4} textAnchor="middle"
+          style={{ fontSize: 7, fill: "#BDBAB6" }}>100%</text>
       </svg>
 
       {/* Legend */}
-      <div className="flex justify-center gap-4 mt-1">
-        {[
-          { label: "Balanced", color: "#2A6B4A" },
-          { label: "Elevated", color: "#B8976A" },
-          { label: "Critical",  color: "#8B2020" },
-        ].map(z => (
-          <div key={z.label} className="flex items-center gap-1">
-            <div className="w-1.5 h-1.5 rounded-full" style={{ background: z.color }} />
-            <span style={{ fontSize: 9, color: WARM_GRAY, letterSpacing: "0.1em" }}>{z.label.toUpperCase()}</span>
+      <div className="flex justify-center gap-4">
+        {[["#2A6B4A","Balanced"],["#B8976A","Elevated"],["#8B2020","Critical"]].map(([c, l]) => (
+          <div key={l} className="flex items-center gap-1">
+            <div style={{ width: 6, height: 6, borderRadius: "50%", background: c, flexShrink: 0 }} />
+            <span style={{ fontSize: 8, color: WARM_GRAY, letterSpacing: "0.1em" }}>{l.toUpperCase()}</span>
           </div>
         ))}
       </div>
