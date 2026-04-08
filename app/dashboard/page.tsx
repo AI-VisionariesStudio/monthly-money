@@ -1034,82 +1034,51 @@ function SpendingTable({ entries, accent, descriptionLabel = "Description", mont
 }
 
 function FinancialGauge({ pct }: { pct: number }) {
-  // Half-circle gauge: 180° (left) = 0%, 0° (right) = 100%
-  const cx = 100, cy = 90, r = 68, sw = 11;
-  const display = Math.round(pct);
   const clamped = Math.min(Math.max(pct, 0), 100);
+  const display = Math.round(pct);
+  const status      = pct < 60 ? "BALANCED" : pct < 80 ? "ELEVATED" : pct < 100 ? "CRITICAL" : "OVERDRAWN";
+  const statusColor = pct < 60 ? "#2A6B4A"  : pct < 80 ? "#B8976A"  : "#8B2020";
 
-  function pt(deg: number, radius = r) {
-    const rad = (deg * Math.PI) / 180;
-    return { x: cx + radius * Math.cos(rad), y: cy - radius * Math.sin(rad) };
-  }
-
-  // sweep=0 → counterclockwise in screen (y-down) = decreasing angle = correct for our gauge
-  function arc(a1: number, a2: number, radius = r) {
-    const s = pt(a1, radius), e = pt(a2, radius);
-    const large = a1 - a2 > 180 ? 1 : 0;
-    return `M ${s.x.toFixed(1)} ${s.y.toFixed(1)} A ${radius} ${radius} 0 ${large} 0 ${e.x.toFixed(1)} ${e.y.toFixed(1)}`;
-  }
-
-  const toAngle = (p: number) => 180 - (p / 100) * 180;
-  const needleAngle = toAngle(clamped);
-  const tip = pt(needleAngle, r - sw - 5);
-
-  const status      = pct < 60 ? "BALANCED"  : pct < 80 ? "ELEVATED"  : pct < 100 ? "CRITICAL"  : "OVERDRAWN";
-  const statusColor = pct < 60 ? "#2A6B4A"   : pct < 80 ? "#B8976A"   : "#8B2020";
+  const bars = [
+    { label: "BALANCED",  max: 60,  color: "#2A6B4A", from: 0  },
+    { label: "ELEVATED",  max: 80,  color: "#B8976A", from: 60 },
+    { label: "CRITICAL",  max: 100, color: "#8B2020", from: 80 },
+  ];
 
   return (
-    <div style={{ width: 220 }}>
-      <svg viewBox="0 0 200 105" width="220" height="105">
-        {/* Grey track */}
-        <path d={arc(180, 0)} fill="none" stroke="#E8E3DC" strokeWidth={sw} strokeLinecap="round" />
+    <div style={{ width: "100%" }}>
+      {/* Percentage + status */}
+      <div className="flex items-baseline justify-between mb-3">
+        <span style={{ fontSize: 32, fontWeight: 300, color: statusColor, lineHeight: 1 }}>{display}%</span>
+        <span style={{ fontSize: 8, letterSpacing: "0.2em", color: statusColor }}>{status}</span>
+      </div>
 
-        {/* Coloured zone bands */}
-        <path d={arc(180, toAngle(60))}           fill="none" stroke="#2A6B4A" strokeWidth={sw} opacity={0.22} />
-        <path d={arc(toAngle(60), toAngle(80))}   fill="none" stroke="#B8976A" strokeWidth={sw} opacity={0.22} />
-        <path d={arc(toAngle(80), 0)}             fill="none" stroke="#8B2020" strokeWidth={sw} opacity={0.22} />
+      {/* Segmented bar track */}
+      <div className="relative w-full" style={{ height: 12, background: "#E8E3DC" }}>
+        {/* Zone dividers */}
+        <div className="absolute inset-y-0" style={{ left: "60%", width: 1, background: "#fff", zIndex: 2 }} />
+        <div className="absolute inset-y-0" style={{ left: "80%", width: 1, background: "#fff", zIndex: 2 }} />
+        {/* Active fill */}
+        <div className="absolute inset-y-0 left-0 transition-all duration-700"
+          style={{ width: `${clamped}%`, background: statusColor }} />
+      </div>
 
-        {/* Active progress */}
-        {clamped > 0 && (
-          <path d={arc(180, needleAngle)} fill="none" stroke={statusColor} strokeWidth={sw - 3} strokeLinecap="round" />
-        )}
-
-        {/* Zone divider ticks */}
-        {[toAngle(60), toAngle(80)].map((a, i) => {
-          const o = pt(a, r + 3), inn = pt(a, r - sw - 3);
-          return <line key={i} x1={inn.x} y1={inn.y} x2={o.x} y2={o.y} stroke="#C8C4BF" strokeWidth={1.5} />;
-        })}
-
-        {/* Needle */}
-        <line x1={cx} y1={cy} x2={tip.x} y2={tip.y} stroke={OBSIDIAN} strokeWidth={1.5} strokeLinecap="round" />
-        <circle cx={cx} cy={cy} r={5} fill={OBSIDIAN} />
-        <circle cx={cx} cy={cy} r={2.5} fill={SURFACE} />
-
-        {/* Text */}
-        <text x={cx} y={cy - 16} textAnchor="middle"
-          style={{ fontSize: 28, fontWeight: 300, fill: statusColor, fontFamily: "'Helvetica Neue', Helvetica, sans-serif" }}>
-          {display}%
-        </text>
-        <text x={cx} y={cy - 3} textAnchor="middle"
-          style={{ fontSize: 7, letterSpacing: "0.22em", fill: statusColor, fontFamily: "'Helvetica Neue', Helvetica, sans-serif" }}>
-          {status}
-        </text>
-
-        {/* Edge labels */}
-        <text x={pt(180, r + 12).x + 2} y={pt(180, r + 12).y + 4} textAnchor="middle"
-          style={{ fontSize: 7, fill: "#BDBAB6" }}>0%</text>
-        <text x={pt(0, r + 12).x - 2} y={pt(0, r + 12).y + 4} textAnchor="middle"
-          style={{ fontSize: 7, fill: "#BDBAB6" }}>100%</text>
-      </svg>
-
-      {/* Legend */}
-      <div className="flex justify-center gap-4">
-        {[["#2A6B4A","Balanced"],["#B8976A","Elevated"],["#8B2020","Critical"]].map(([c, l]) => (
-          <div key={l} className="flex items-center gap-1">
-            <div style={{ width: 6, height: 6, borderRadius: "50%", background: c, flexShrink: 0 }} />
-            <span style={{ fontSize: 8, color: WARM_GRAY, letterSpacing: "0.1em" }}>{l.toUpperCase()}</span>
+      {/* Zone labels */}
+      <div className="flex mt-2">
+        {bars.map(b => (
+          <div key={b.label} style={{ width: `${b.max - b.from}%` }}>
+            <div className="flex items-center gap-1 px-1">
+              <div style={{ width: 5, height: 5, borderRadius: "50%", background: b.color, flexShrink: 0 }} />
+              <span style={{ fontSize: 7, color: WARM_GRAY, letterSpacing: "0.1em", whiteSpace: "nowrap" }}>{b.label}</span>
+            </div>
           </div>
         ))}
+      </div>
+
+      {/* Min / max labels */}
+      <div className="flex justify-between mt-1">
+        <span style={{ fontSize: 7, color: "#BDBAB6" }}>0%</span>
+        <span style={{ fontSize: 7, color: "#BDBAB6" }}>100%</span>
       </div>
     </div>
   );
