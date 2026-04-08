@@ -237,7 +237,7 @@ export default function DashboardPage() {
   const totalRem    = mRem + aRem + lRem + grRem;
   const totalDue    = mDue + aDue + lDue + grDue;
   const totalPaidAll = mPaid + aPaid + lPaid + grPaid;
-  const netBalance  = iRec - totalRem - foodSpent;
+  const netBalance  = iRec - totalPaidAll - foodSpent;
 
   // Only bill-type entries have meaningful statuses
   const billExpenses = expenses.filter(e => ["monthly", "annual", "lien"].includes(e.frequency) || e.category === "GR Business");
@@ -268,9 +268,9 @@ export default function DashboardPage() {
   if (foodSpent > 0)
     insights.push({ text: `Food spending: ${fmt(grSpent)} groceries + ${fmt(resSpent)} dining = ${fmt(foodSpent)} total deducted from income.`, tone: foodSpent > iRec * 0.2 ? "warning" : "neutral" });
   if (netBalance >= 0)
-    insights.push({ text: `Net financial position: ${fmt(netBalance)} surplus after all obligations and food spending.`, tone: "positive" });
+    insights.push({ text: `Net financial position: ${fmt(netBalance)} remaining of income received after bills paid and food spending.`, tone: "positive" });
   else
-    insights.push({ text: `Net financial position: ${fmt(Math.abs(netBalance))} shortfall against obligations and food spending.`, tone: "warning" });
+    insights.push({ text: `Net financial position: ${fmt(Math.abs(netBalance))} overspent relative to income received.`, tone: "warning" });
 
   // ── Section header helper ─────────────────────────────────────────────────
   function jumpToSection(sectionId: string, openFn: () => void) {
@@ -430,7 +430,7 @@ export default function DashboardPage() {
                 <p className="text-xs mb-3" style={{ color: WARM_GRAY, letterSpacing: "0.16em" }}>INCOME BALANCE</p>
                 <p className="text-2xl font-light tabular-nums" style={{ color: netBalance >= 0 ? MUTED_GRN : MUTED_RED }}>{fmt(netBalance)}</p>
                 <p className="text-xs mt-2" style={{ color: "#BDBAB6", letterSpacing: "0.06em" }}>
-                  after bills ({fmt(totalRem)}) + food ({fmt(foodSpent)})
+                  after bills paid ({fmt(totalPaidAll)}) + food ({fmt(foodSpent)})
                 </p>
               </div>
             </div>
