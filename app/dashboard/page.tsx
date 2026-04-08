@@ -457,10 +457,20 @@ export default function DashboardPage() {
                     </div>
                   ))}
                 </div>
-                {/* Gauge */}
-                <div className="flex flex-col items-center justify-center px-8 py-6 shrink-0 border-t md:border-t-0 md:border-l" style={{ borderColor: BORDER }}>
+                {/* Chart */}
+                <div className="px-6 py-6 shrink-0 border-t md:border-t-0 md:border-l" style={{ borderColor: BORDER, width: 380 }}>
                   <p className="text-xs mb-4 tracking-widest" style={{ color: WARM_GRAY, letterSpacing: "0.2em" }}>INCOME UTILIZATION</p>
-                  <FinancialGauge pct={iRec > 0 ? (totalPaidAll + varSpent) / iRec * 100 : 0} />
+                  <FinancialGauge
+                    pct={iRec > 0 ? (totalPaidAll + varSpent) / iRec * 100 : 0}
+                    iRec={iRec}
+                    data={[
+                      { label: "BILLS",       amount: totalPaidAll },
+                      { label: "GROCERIES",   amount: grSpent      },
+                      { label: "DINING",      amount: resSpent     },
+                      { label: "INCIDENTAL",  amount: incSpent     },
+                      { label: "FUEL",        amount: fuelSpent    },
+                    ]}
+                  />
                 </div>
               </div>
             </div>
@@ -1033,52 +1043,87 @@ function SpendingTable({ entries, accent, descriptionLabel = "Description", mont
   );
 }
 
-function FinancialGauge({ pct }: { pct: number }) {
-  const clamped = Math.min(Math.max(pct, 0), 100);
+function FinancialGauge({ pct, iRec, data }: {
+  pct: number;
+  iRec: number;
+  data: { label: string; amount: number }[];
+}) {
   const display = Math.round(pct);
   const status      = pct < 60 ? "BALANCED" : pct < 80 ? "ELEVATED" : pct < 100 ? "CRITICAL" : "OVERDRAWN";
   const statusColor = pct < 60 ? "#2A6B4A"  : pct < 80 ? "#B8976A"  : "#8B2020";
+  const CHART_H = 200;
+  const safe = iRec > 0 ? iRec : 1;
 
-  const bars = [
-    { label: "BALANCED",  max: 60,  color: "#2A6B4A", from: 0  },
-    { label: "ELEVATED",  max: 80,  color: "#B8976A", from: 60 },
-    { label: "CRITICAL",  max: 100, color: "#8B2020", from: 80 },
-  ];
+  function barColor(amount: number) {
+    const p = (amount / safe) * 100;
+    if (p < 20) return "#2A6B4A";
+    if (p < 35) return "#B8976A";
+    return "#8B2020";
+  }
+
+  function fmtShort(v: number) {
+    if (v >= 1000) return `$${(v / 1000).toFixed(1)}k`;
+    return `$${Math.round(v)}`;
+  }
 
   return (
     <div style={{ width: "100%" }}>
-      {/* Percentage + status */}
-      <div className="flex items-baseline justify-between mb-3">
-        <span style={{ fontSize: 32, fontWeight: 300, color: statusColor, lineHeight: 1 }}>{display}%</span>
+      {/* Header */}
+      <div className="flex items-baseline justify-between mb-5">
+        <span style={{ fontSize: 28, fontWeight: 300, color: statusColor, lineHeight: 1 }}>{display}%</span>
         <span style={{ fontSize: 8, letterSpacing: "0.2em", color: statusColor }}>{status}</span>
       </div>
 
-      {/* Segmented bar track */}
-      <div className="relative w-full" style={{ height: 12, background: "#E8E3DC" }}>
-        {/* Zone dividers */}
-        <div className="absolute inset-y-0" style={{ left: "60%", width: 1, background: "#fff", zIndex: 2 }} />
-        <div className="absolute inset-y-0" style={{ left: "80%", width: 1, background: "#fff", zIndex: 2 }} />
-        {/* Active fill */}
-        <div className="absolute inset-y-0 left-0 transition-all duration-700"
-          style={{ width: `${clamped}%`, background: statusColor }} />
+      {/* Column chart */}
+      <div className="relative w-full" style={{ height: CHART_H }}>
+        {/* Threshold lines */}
+        {[{ pct: 80, color: "#8B2020", label: "80%" }, { pct: 60, color: "#B8976A", label: "60%" }].map(t => (
+          <div key={t.pct} className="absolute left-0 right-0 flex items-center"
+            style={{ bottom: `${t.pct}%`, zIndex: 1 }}>
+            <div className="flex-1" style={{ borderTop: `1px dashed ${t.color}`, opacity: 0.45 }} />
+            <span style={{ fontSize: 6, color: t.color, letterSpacing: "0.08em", paddingLeft: 4, opacity: 0.7 }}>{t.label}</span>
+          </div>
+        ))}
+
+        {/* Bars */}
+        <div className="absolute inset-0 flex items-end gap-1.5">
+          {data.map((d, i) => {
+            const hPct = Math.min((d.amount / safe) * 100, 100);
+            const color = barColor(d.amount);
+            return (
+              <div key={i} className="relative flex-1 h-full flex flex-col justify-end">
+                {d.amount > 0 && (
+                  <span className="absolute w-full text-center"
+                    style={{ bottom: `${hPct}%`, marginBottom: 3, fontSize: 7, color, letterSpacing: "0.04em" }}>
+                    {fmtShort(d.amount)}
+                  </span>
+                )}
+                <div className="w-full transition-all duration-700"
+                  style={{ height: `${hPct}%`, background: color, minHeight: d.amount > 0 ? 2 : 0 }} />
+              </div>
+            );
+          })}
+        </div>
       </div>
 
-      {/* Zone labels */}
-      <div className="flex mt-2">
-        {bars.map(b => (
-          <div key={b.label} style={{ width: `${b.max - b.from}%` }}>
-            <div className="flex items-center gap-1 px-1">
-              <div style={{ width: 5, height: 5, borderRadius: "50%", background: b.color, flexShrink: 0 }} />
-              <span style={{ fontSize: 7, color: WARM_GRAY, letterSpacing: "0.1em", whiteSpace: "nowrap" }}>{b.label}</span>
-            </div>
+      {/* X-axis labels */}
+      <div className="flex gap-1.5 mt-1.5">
+        {data.map((d, i) => (
+          <div key={i} className="flex-1 text-center"
+            style={{ fontSize: 6, color: WARM_GRAY, letterSpacing: "0.08em" }}>
+            {d.label}
           </div>
         ))}
       </div>
 
-      {/* Min / max labels */}
-      <div className="flex justify-between mt-1">
-        <span style={{ fontSize: 7, color: "#BDBAB6" }}>0%</span>
-        <span style={{ fontSize: 7, color: "#BDBAB6" }}>100%</span>
+      {/* Legend */}
+      <div className="flex justify-center gap-4 mt-4">
+        {[["#2A6B4A", "Balanced"], ["#B8976A", "Elevated"], ["#8B2020", "Critical"]].map(([c, l]) => (
+          <div key={l} className="flex items-center gap-1">
+            <div style={{ width: 8, height: 8, background: c, flexShrink: 0 }} />
+            <span style={{ fontSize: 7, color: WARM_GRAY, letterSpacing: "0.1em" }}>{l.toUpperCase()}</span>
+          </div>
+        ))}
       </div>
     </div>
   );
