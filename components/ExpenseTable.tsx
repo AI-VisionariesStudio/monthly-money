@@ -181,6 +181,8 @@ function EditModal({ expense, onSave, onClose }: {
                 <option value="income">Income</option>
                 <option value="groceries">Groceries</option>
                 <option value="restaurants">Restaurants</option>
+                <option value="incidental">Incidental</option>
+                <option value="fuel">Fuel</option>
               </select>
             </div>
           </div>

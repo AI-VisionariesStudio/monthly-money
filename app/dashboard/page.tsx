@@ -78,6 +78,8 @@ export default function DashboardPage() {
   const [openGR,      setOpenGR]      = useState(false);
   const [openGroceries,    setOpenGroceries]    = useState(false);
   const [openRestaurants,  setOpenRestaurants]  = useState(false);
+  const [openIncidental,   setOpenIncidental]   = useState(false);
+  const [openFuel,         setOpenFuel]         = useState(false);
   const [spendInlineId,    setSpendInlineId]    = useState<string | null>(null);
   const [spendInlineField, setSpendInlineField] = useState<string | null>(null);
   const [spendInlineValue, setSpendInlineValue] = useState("");
@@ -202,8 +204,10 @@ export default function DashboardPage() {
   const liens      = expenses.filter(e => e.frequency === "lien");
   const income     = expenses.filter(e => e.frequency === "income");
   const grBusiness = expenses.filter(e => e.category  === "GR Business");
-  const groceries  = expenses.filter(e => e.frequency === "groceries");
+  const groceries   = expenses.filter(e => e.frequency === "groceries");
   const restaurants = expenses.filter(e => e.frequency === "restaurants");
+  const incidental  = expenses.filter(e => e.frequency === "incidental");
+  const fuel        = expenses.filter(e => e.frequency === "fuel");
 
   // ── Stats ──────────────────────────────────────────────────────────────────
   function effectivePaid(e: Expense) {
@@ -230,14 +234,16 @@ export default function DashboardPage() {
   const iExp  = income.reduce((s, e) => s + e.amount, 0);
   const iRec  = income.reduce((s, e) => s + effectivePaid(e), 0);
 
-  const grSpent  = groceries.reduce((s, e) => s + e.amount, 0);
-  const resSpent = restaurants.reduce((s, e) => s + e.amount, 0);
-  const foodSpent = grSpent + resSpent;
+  const grSpent   = groceries.reduce((s, e) => s + e.amount, 0);
+  const resSpent  = restaurants.reduce((s, e) => s + e.amount, 0);
+  const incSpent  = incidental.reduce((s, e) => s + e.amount, 0);
+  const fuelSpent = fuel.reduce((s, e) => s + e.amount, 0);
+  const varSpent  = grSpent + resSpent + incSpent + fuelSpent;
 
   const totalRem    = mRem + aRem + lRem + grRem;
   const totalDue    = mDue + aDue + lDue + grDue;
   const totalPaidAll = mPaid + aPaid + lPaid + grPaid;
-  const netBalance  = iRec - totalPaidAll - foodSpent;
+  const netBalance  = iRec - totalPaidAll - varSpent;
 
   // Only bill-type entries have meaningful statuses
   const billExpenses = expenses.filter(e => ["monthly", "annual", "lien"].includes(e.frequency) || e.category === "GR Business");
@@ -265,8 +271,8 @@ export default function DashboardPage() {
     insights.push({ text: `Received income covers ${Math.min(coveragePct, 999)}% of current outstanding obligations.`, tone: coveragePct >= 100 ? "positive" : "neutral" });
   if (grPortfolioPct > 0)
     insights.push({ text: `Gracefully Redefined comprises ${grPortfolioPct}% of total portfolio obligations — ${fmt(grRem)} remaining.`, tone: "neutral" });
-  if (foodSpent > 0)
-    insights.push({ text: `Food spending: ${fmt(grSpent)} groceries + ${fmt(resSpent)} dining = ${fmt(foodSpent)} total deducted from income.`, tone: foodSpent > iRec * 0.2 ? "warning" : "neutral" });
+  if (varSpent > 0)
+    insights.push({ text: `Variable spending: ${fmt(grSpent)} groceries · ${fmt(resSpent)} dining · ${fmt(incSpent)} incidental · ${fmt(fuelSpent)} fuel = ${fmt(varSpent)} total deducted from income.`, tone: varSpent > iRec * 0.3 ? "warning" : "neutral" });
   if (netBalance >= 0)
     insights.push({ text: `Net financial position: ${fmt(netBalance)} remaining of income received after bills paid and food spending.`, tone: "positive" });
   else
@@ -414,23 +420,25 @@ export default function DashboardPage() {
               ))}
             </div>
 
-            {/* Groceries · Restaurants · Net Balance cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-              <div style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderTop: "2px solid #4A7C59" }} className="p-5">
-                <p className="text-xs mb-3" style={{ color: WARM_GRAY, letterSpacing: "0.16em" }}>GROCERIES SPENT</p>
-                <p className="text-2xl font-light tabular-nums" style={{ color: "#4A7C59" }}>{fmt(grSpent)}</p>
-                <p className="text-xs mt-2" style={{ color: "#BDBAB6", letterSpacing: "0.06em" }}>{groceries.length} {groceries.length === 1 ? "entry" : "entries"} this month</p>
-              </div>
-              <div style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderTop: "2px solid #7C4A4A" }} className="p-5">
-                <p className="text-xs mb-3" style={{ color: WARM_GRAY, letterSpacing: "0.16em" }}>RESTAURANTS SPENT</p>
-                <p className="text-2xl font-light tabular-nums" style={{ color: "#7C4A4A" }}>{fmt(resSpent)}</p>
-                <p className="text-xs mt-2" style={{ color: "#BDBAB6", letterSpacing: "0.06em" }}>{restaurants.length} {restaurants.length === 1 ? "entry" : "entries"} this month</p>
-              </div>
+            {/* Variable spending + Net Balance cards */}
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+              {[
+                { label: "Groceries Spent",   value: fmt(grSpent),   sub: `${groceries.length} entries`,   accent: "#4A7C59" },
+                { label: "Restaurants Spent", value: fmt(resSpent),  sub: `${restaurants.length} entries`,  accent: "#7C4A4A" },
+                { label: "Incidental Spent",  value: fmt(incSpent),  sub: `${incidental.length} entries`,   accent: "#4A6B7C" },
+                { label: "Fuel Spent",        value: fmt(fuelSpent), sub: `${fuel.length} entries`,         accent: "#8B6320" },
+              ].map(c => (
+                <div key={c.label} style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderTop: `2px solid ${c.accent}` }} className="p-5">
+                  <p className="text-xs mb-3" style={{ color: WARM_GRAY, letterSpacing: "0.16em" }}>{c.label.toUpperCase()}</p>
+                  <p className="text-2xl font-light tabular-nums" style={{ color: c.accent }}>{c.value}</p>
+                  <p className="text-xs mt-2" style={{ color: "#BDBAB6", letterSpacing: "0.06em" }}>{c.sub}</p>
+                </div>
+              ))}
               <div style={{ background: netBalance >= 0 ? SURFACE : "#FDF8F8", border: `1px solid ${BORDER}`, borderTop: `2px solid ${netBalance >= 0 ? MUTED_GRN : MUTED_RED}` }} className="p-5">
                 <p className="text-xs mb-3" style={{ color: WARM_GRAY, letterSpacing: "0.16em" }}>INCOME BALANCE</p>
                 <p className="text-2xl font-light tabular-nums" style={{ color: netBalance >= 0 ? MUTED_GRN : MUTED_RED }}>{fmt(netBalance)}</p>
                 <p className="text-xs mt-2" style={{ color: "#BDBAB6", letterSpacing: "0.06em" }}>
-                  after bills paid ({fmt(totalPaidAll)}) + food ({fmt(foodSpent)})
+                  after bills paid ({fmt(totalPaidAll)}) + variable ({fmt(varSpent)})
                 </p>
               </div>
             </div>
@@ -606,6 +614,38 @@ export default function DashboardPage() {
                 setInlineId={setSpendInlineId} setInlineField={setSpendInlineField} setInlineValue={setSpendInlineValue}
                 commitInline={commitSpendInline} />}
             </SectionBlock>
+
+            {/* ── Section: Incidental ──────────────────────────────────── */}
+            <SectionBlock
+              id="section-incidental"
+              label="INCIDENTAL"
+              accent="#4A6B7C"
+              open={openIncidental}
+              onToggle={() => setOpenIncidental(!openIncidental)}
+              chevron={chevron}>
+              {!loading && <SpendingTable entries={incidental} accent="#4A6B7C" descriptionLabel="Description"
+                monthKey={monthKey} frequency="incidental"
+                onUpdate={handleUpdate} onDelete={handleDelete} onRefresh={fetchExpenses}
+                inlineId={spendInlineId} inlineField={spendInlineField} inlineValue={spendInlineValue}
+                setInlineId={setSpendInlineId} setInlineField={setSpendInlineField} setInlineValue={setSpendInlineValue}
+                commitInline={commitSpendInline} />}
+            </SectionBlock>
+
+            {/* ── Section: Fuel ────────────────────────────────────────── */}
+            <SectionBlock
+              id="section-fuel"
+              label="FUEL"
+              accent="#8B6320"
+              open={openFuel}
+              onToggle={() => setOpenFuel(!openFuel)}
+              chevron={chevron}>
+              {!loading && <SpendingTable entries={fuel} accent="#8B6320" descriptionLabel="Description"
+                monthKey={monthKey} frequency="fuel"
+                onUpdate={handleUpdate} onDelete={handleDelete} onRefresh={fetchExpenses}
+                inlineId={spendInlineId} inlineField={spendInlineField} inlineValue={spendInlineValue}
+                setInlineId={setSpendInlineId} setInlineField={setSpendInlineField} setInlineValue={setSpendInlineValue}
+                commitInline={commitSpendInline} />}
+            </SectionBlock>
           </>
         )}
 
@@ -769,8 +809,10 @@ export default function DashboardPage() {
                   { label: "Gracefully Redefined",   paid: grPaid,  due: grDue,  accent: GR_BEIGE,  sectionId: "section-gr",          openFn: () => setOpenGR(true) },
                   { label: "Annual Expenses",        paid: aPaid,   due: aDue,   accent: WARM_GRAY, sectionId: "section-annual",      openFn: () => setOpenAnnual(true) },
                   { label: "Outstanding Obligations",paid: lPaid,   due: lDue,   accent: MUTED_RED, sectionId: "section-liens",       openFn: () => setOpenLiens(true) },
-                  { label: "Groceries",              paid: grSpent, due: grSpent, accent: "#4A7C59", sectionId: "section-groceries",   openFn: () => setOpenGroceries(true) },
-                  { label: "Restaurants",            paid: resSpent,due: resSpent,accent: "#7C4A4A", sectionId: "section-restaurants", openFn: () => setOpenRestaurants(true) },
+                  { label: "Groceries",              paid: grSpent,   due: grSpent,   accent: "#4A7C59", sectionId: "section-groceries",   openFn: () => setOpenGroceries(true) },
+                  { label: "Restaurants",            paid: resSpent,  due: resSpent,  accent: "#7C4A4A", sectionId: "section-restaurants", openFn: () => setOpenRestaurants(true) },
+                  { label: "Incidental",             paid: incSpent,  due: incSpent,  accent: "#4A6B7C", sectionId: "section-incidental",  openFn: () => setOpenIncidental(true) },
+                  { label: "Fuel",                   paid: fuelSpent, due: fuelSpent, accent: "#8B6320", sectionId: "section-fuel",        openFn: () => setOpenFuel(true) },
                 ].map((row, i, arr) => {
                   const pct = row.due > 0 ? (row.paid / row.due) * 100 : 0;
                   return (
@@ -802,7 +844,7 @@ export default function DashboardPage() {
               </div>
               <div className="mt-6 px-6 py-4 flex items-center justify-between" style={{ background: OBSIDIAN }}>
                 <span className="text-xs tracking-widest" style={{ color: GOLD, letterSpacing: "0.2em" }}>TOTAL PAID</span>
-                <span className="text-xl font-light tabular-nums" style={{ color: "#fff" }}>{fmt(mPaid + grPaid + aPaid + lPaid + grSpent + resSpent)}</span>
+                <span className="text-xl font-light tabular-nums" style={{ color: "#fff" }}>{fmt(mPaid + grPaid + aPaid + lPaid + varSpent)}</span>
               </div>
             </div>
           </div>
@@ -819,7 +861,7 @@ function SpendingTable({ entries, accent, descriptionLabel = "Description", mont
   accent: string;
   descriptionLabel?: string;
   monthKey: string;
-  frequency: "groceries" | "restaurants";
+  frequency: "groceries" | "restaurants" | "incidental" | "fuel";
   onUpdate: (id: string, data: Partial<import("@/components/ExpenseTable").Expense>) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   onRefresh: () => Promise<void>;
@@ -847,7 +889,7 @@ function SpendingTable({ entries, accent, descriptionLabel = "Description", mont
     setAdding(true);
     const res = await fetch("/api/expenses", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ description: addDesc.trim(), amount: amt, amountPaid: amt, category: frequency === "groceries" ? "Groceries" : "Dining", dueDate: addDate, notes: addNotes || null, frequency, monthKey }),
+      body: JSON.stringify({ description: addDesc.trim(), amount: amt, amountPaid: amt, category: frequency === "groceries" ? "Groceries" : frequency === "restaurants" ? "Dining" : frequency === "fuel" ? "Fuel" : "Incidental", dueDate: addDate, notes: addNotes || null, frequency, monthKey }),
     });
     setAdding(false);
     if (res.ok) { setAddDesc(""); setAddAmt(""); setAddNotes(""); await onRefresh(); }
