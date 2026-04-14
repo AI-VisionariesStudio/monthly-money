@@ -69,6 +69,7 @@ export default function DashboardPage() {
     const t = setInterval(() => setNow(new Date()), 60000);
     return () => clearInterval(t);
   }, []);
+  const [openInsights, setOpenInsights] = useState(true);
   const [openMonthly, setOpenMonthly] = useState(false);
   const [incomeInlineId,    setIncomeInlineId]    = useState<string | null>(null);
   const [incomeInlineField, setIncomeInlineField] = useState<string | null>(null);
@@ -76,6 +77,15 @@ export default function DashboardPage() {
   const [openAnnual,  setOpenAnnual]  = useState(false);
   const [openLiens,   setOpenLiens]   = useState(false);
   const [openGR,      setOpenGR]      = useState(false);
+  const [showAddGR,     setShowAddGR]     = useState(false);
+  const [showAddAnnual, setShowAddAnnual] = useState(false);
+  const [showAddLien,   setShowAddLien]   = useState(false);
+  const [addGRForm,     setAddGRForm]     = useState({ description: "", amount: "", category: "GR Business", dueDate: `${getCurrentMonthKey()}-01`, isRecurring: false, frequency: "monthly" });
+  const [addAnnualForm, setAddAnnualForm] = useState({ description: "", amount: "", category: "", dueDate: `${getCurrentMonthKey()}-01`, isRecurring: false, frequency: "annual" });
+  const [addLienForm,   setAddLienForm]   = useState({ description: "", amount: "", category: "", dueDate: `${getCurrentMonthKey()}-01`, isRecurring: false, frequency: "lien" });
+  const [addGRError,     setAddGRError]     = useState<string | null>(null);
+  const [addAnnualError, setAddAnnualError] = useState<string | null>(null);
+  const [addLienError,   setAddLienError]   = useState<string | null>(null);
   const [openGroceries,    setOpenGroceries]    = useState(false);
   const [openRestaurants,  setOpenRestaurants]  = useState(false);
   const [openIncidental,   setOpenIncidental]   = useState(false);
@@ -160,6 +170,54 @@ export default function DashboardPage() {
     } else {
       const d = await res.json(); setAddError(d.error || "Failed.");
     }
+  }
+
+  async function handleAddGR(e: React.FormEvent) {
+    e.preventDefault(); setAddGRError(null);
+    if (!addGRForm.description || !addGRForm.amount || !addGRForm.dueDate) {
+      setAddGRError("All fields required."); return;
+    }
+    const res = await fetch("/api/expenses", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...addGRForm, amount: parseFloat(addGRForm.amount), monthKey }),
+    });
+    if (res.ok) {
+      setShowAddGR(false);
+      setAddGRForm({ description: "", amount: "", category: "GR Business", dueDate: `${monthKey}-01`, isRecurring: false, frequency: "monthly" });
+      fetchExpenses();
+    } else { const d = await res.json(); setAddGRError(d.error || "Failed."); }
+  }
+
+  async function handleAddAnnual(e: React.FormEvent) {
+    e.preventDefault(); setAddAnnualError(null);
+    if (!addAnnualForm.description || !addAnnualForm.amount || !addAnnualForm.category || !addAnnualForm.dueDate) {
+      setAddAnnualError("All fields required."); return;
+    }
+    const res = await fetch("/api/expenses", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...addAnnualForm, amount: parseFloat(addAnnualForm.amount), monthKey }),
+    });
+    if (res.ok) {
+      setShowAddAnnual(false);
+      setAddAnnualForm({ description: "", amount: "", category: "", dueDate: `${monthKey}-01`, isRecurring: false, frequency: "annual" });
+      fetchExpenses();
+    } else { const d = await res.json(); setAddAnnualError(d.error || "Failed."); }
+  }
+
+  async function handleAddLien(e: React.FormEvent) {
+    e.preventDefault(); setAddLienError(null);
+    if (!addLienForm.description || !addLienForm.amount || !addLienForm.category || !addLienForm.dueDate) {
+      setAddLienError("All fields required."); return;
+    }
+    const res = await fetch("/api/expenses", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...addLienForm, amount: parseFloat(addLienForm.amount), monthKey }),
+    });
+    if (res.ok) {
+      setShowAddLien(false);
+      setAddLienForm({ description: "", amount: "", category: "", dueDate: `${monthKey}-01`, isRecurring: false, frequency: "lien" });
+      fetchExpenses();
+    } else { const d = await res.json(); setAddLienError(d.error || "Failed."); }
   }
 
   async function commitSpendInline(expense: Expense) {
@@ -443,36 +501,42 @@ export default function DashboardPage() {
 
             {/* ── AI Insights + Gauge ──────────────────────────────────────── */}
             <div className="mb-10" style={{ border: `1px solid ${BORDER}`, background: SURFACE }}>
-              <div className="px-6 py-4 flex items-center gap-3" style={{ borderBottom: `1px solid ${BORDER}`, background: IVORY }}>
+              <button
+                onClick={() => setOpenInsights(!openInsights)}
+                className="w-full px-6 py-4 flex items-center gap-3 hover:opacity-70 transition-opacity"
+                style={{ borderBottom: openInsights ? `1px solid ${BORDER}` : "none", background: IVORY }}>
                 <div className="w-px h-4" style={{ background: GOLD }} />
                 <p className="text-xs font-semibold tracking-widest" style={{ color: OBSIDIAN, letterSpacing: "0.2em" }}>AI FINANCIAL INSIGHTS</p>
-              </div>
-              <div className="flex flex-col md:flex-row">
-                {/* Insights list */}
-                <div className="flex-1 divide-y" style={{ borderColor: BORDER }}>
-                  {insights.map((ins, i) => (
-                    <div key={i} className="px-6 py-4 flex items-start gap-4">
-                      <span style={{ color: ins.tone === "warning" ? MUTED_RED : ins.tone === "positive" ? MUTED_GRN : GOLD, fontSize: 16, lineHeight: 1, marginTop: 1, flexShrink: 0 }}>◆</span>
-                      <p className="text-sm leading-relaxed" style={{ color: WARM_GRAY }}>{ins.text}</p>
-                    </div>
-                  ))}
+                <span style={{ color: GOLD, fontSize: 10, marginLeft: "auto" }}>{openInsights ? "▾" : "▸"}</span>
+              </button>
+              {openInsights && (
+                <div className="flex flex-col md:flex-row">
+                  {/* Insights list */}
+                  <div className="flex-1 divide-y" style={{ borderColor: BORDER }}>
+                    {insights.map((ins, i) => (
+                      <div key={i} className="px-6 py-4 flex items-start gap-4">
+                        <span style={{ color: ins.tone === "warning" ? MUTED_RED : ins.tone === "positive" ? MUTED_GRN : GOLD, fontSize: 16, lineHeight: 1, marginTop: 1, flexShrink: 0 }}>◆</span>
+                        <p className="text-sm leading-relaxed" style={{ color: WARM_GRAY }}>{ins.text}</p>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Chart */}
+                  <div className="px-6 py-6 shrink-0 border-t md:border-t-0 md:border-l" style={{ borderColor: BORDER, width: 380 }}>
+                    <p className="text-xs mb-4 tracking-widest" style={{ color: WARM_GRAY, letterSpacing: "0.2em" }}>INCOME UTILIZATION</p>
+                    <FinancialGauge
+                      pct={iRec > 0 ? (totalPaidAll + varSpent) / iRec * 100 : 0}
+                      iRec={iRec}
+                      data={[
+                        { label: "BILLS",       amount: totalPaidAll },
+                        { label: "GROCERIES",   amount: grSpent      },
+                        { label: "DINING",      amount: resSpent     },
+                        { label: "INCIDENTAL",  amount: incSpent     },
+                        { label: "FUEL",        amount: fuelSpent    },
+                      ]}
+                    />
+                  </div>
                 </div>
-                {/* Chart */}
-                <div className="px-6 py-6 shrink-0 border-t md:border-t-0 md:border-l" style={{ borderColor: BORDER, width: 380 }}>
-                  <p className="text-xs mb-4 tracking-widest" style={{ color: WARM_GRAY, letterSpacing: "0.2em" }}>INCOME UTILIZATION</p>
-                  <FinancialGauge
-                    pct={iRec > 0 ? (totalPaidAll + varSpent) / iRec * 100 : 0}
-                    iRec={iRec}
-                    data={[
-                      { label: "BILLS",       amount: totalPaidAll },
-                      { label: "GROCERIES",   amount: grSpent      },
-                      { label: "DINING",      amount: resSpent     },
-                      { label: "INCIDENTAL",  amount: incSpent     },
-                      { label: "FUEL",        amount: fuelSpent    },
-                    ]}
-                  />
-                </div>
-              </div>
+              )}
             </div>
 
             {/* ── Section: Expenses ─────────────────────────────────────── */}
@@ -543,7 +607,43 @@ export default function DashboardPage() {
               accent={GR_BEIGE}
               open={openGR}
               onToggle={() => setOpenGR(!openGR)}
-              chevron={chevron}>
+              chevron={chevron}
+              action={openGR ? (
+                <button onClick={() => setShowAddGR(!showAddGR)}
+                  className="text-xs tracking-widest px-4 py-2 transition-all"
+                  style={{ background: showAddGR ? IVORY : OBSIDIAN, color: showAddGR ? MUTED_RED : "#fff", border: `1px solid ${showAddGR ? BORDER : OBSIDIAN}`, letterSpacing: "0.12em" }}>
+                  {showAddGR ? "CANCEL" : "+ ADD"}
+                </button>
+              ) : null}>
+              {showAddGR && (
+                <form onSubmit={handleAddGR}
+                  className="mb-6 p-6 grid grid-cols-2 md:grid-cols-3 gap-4"
+                  style={{ background: IVORY, border: `1px solid ${BORDER}` }}>
+                  {[
+                    { label: "Description", key: "description", type: "text",   placeholder: "e.g. Marketing" },
+                    { label: "Amount",       key: "amount",      type: "number", placeholder: "0.00" },
+                    { label: "Due Date",     key: "dueDate",     type: "date",   placeholder: "" },
+                  ].map(f => (
+                    <div key={f.key}>
+                      <label className="block text-xs mb-1.5" style={{ color: WARM_GRAY, letterSpacing: "0.12em" }}>{f.label.toUpperCase()}</label>
+                      <input type={f.type} value={(addGRForm as any)[f.key]} placeholder={f.placeholder}
+                        onChange={e => setAddGRForm({ ...addGRForm, [f.key]: e.target.value })}
+                        className={inp} style={inpStyle} />
+                    </div>
+                  ))}
+                  <div className="flex items-end">
+                    <label className="flex items-center gap-2 text-xs cursor-pointer" style={{ color: WARM_GRAY, letterSpacing: "0.08em" }}>
+                      <input type="checkbox" checked={addGRForm.isRecurring}
+                        onChange={e => setAddGRForm({ ...addGRForm, isRecurring: e.target.checked })} className="w-3.5 h-3.5" /> RECURRING
+                    </label>
+                  </div>
+                  <div className="col-span-2 md:col-span-3 flex items-center gap-4">
+                    {addGRError && <p className="text-xs" style={{ color: MUTED_RED }}>{addGRError}</p>}
+                    <button type="submit" className="px-6 py-2.5 text-xs tracking-widest"
+                      style={{ background: OBSIDIAN, color: "#fff", letterSpacing: "0.14em" }}>ADD ENTRY</button>
+                  </div>
+                </form>
+              )}
               <MiniStats items={[
                 { label: "DUE", value: fmt(grDue) },
                 { label: "PAID", value: fmt(grPaid), positive: true },
@@ -563,7 +663,44 @@ export default function DashboardPage() {
               accent="#8A8078"
               open={openAnnual}
               onToggle={() => setOpenAnnual(!openAnnual)}
-              chevron={chevron}>
+              chevron={chevron}
+              action={openAnnual ? (
+                <button onClick={() => setShowAddAnnual(!showAddAnnual)}
+                  className="text-xs tracking-widest px-4 py-2 transition-all"
+                  style={{ background: showAddAnnual ? IVORY : OBSIDIAN, color: showAddAnnual ? MUTED_RED : "#fff", border: `1px solid ${showAddAnnual ? BORDER : OBSIDIAN}`, letterSpacing: "0.12em" }}>
+                  {showAddAnnual ? "CANCEL" : "+ ADD"}
+                </button>
+              ) : null}>
+              {showAddAnnual && (
+                <form onSubmit={handleAddAnnual}
+                  className="mb-6 p-6 grid grid-cols-2 md:grid-cols-3 gap-4"
+                  style={{ background: IVORY, border: `1px solid ${BORDER}` }}>
+                  {[
+                    { label: "Description", key: "description", type: "text",   placeholder: "e.g. Insurance" },
+                    { label: "Amount",       key: "amount",      type: "number", placeholder: "0.00" },
+                    { label: "Category",     key: "category",    type: "text",   placeholder: "e.g. Insurance" },
+                    { label: "Due Date",     key: "dueDate",     type: "date",   placeholder: "" },
+                  ].map(f => (
+                    <div key={f.key}>
+                      <label className="block text-xs mb-1.5" style={{ color: WARM_GRAY, letterSpacing: "0.12em" }}>{f.label.toUpperCase()}</label>
+                      <input type={f.type} value={(addAnnualForm as any)[f.key]} placeholder={f.placeholder}
+                        onChange={e => setAddAnnualForm({ ...addAnnualForm, [f.key]: e.target.value })}
+                        className={inp} style={inpStyle} />
+                    </div>
+                  ))}
+                  <div className="flex items-end">
+                    <label className="flex items-center gap-2 text-xs cursor-pointer" style={{ color: WARM_GRAY, letterSpacing: "0.08em" }}>
+                      <input type="checkbox" checked={addAnnualForm.isRecurring}
+                        onChange={e => setAddAnnualForm({ ...addAnnualForm, isRecurring: e.target.checked })} className="w-3.5 h-3.5" /> RECURRING
+                    </label>
+                  </div>
+                  <div className="col-span-2 md:col-span-3 flex items-center gap-4">
+                    {addAnnualError && <p className="text-xs" style={{ color: MUTED_RED }}>{addAnnualError}</p>}
+                    <button type="submit" className="px-6 py-2.5 text-xs tracking-widest"
+                      style={{ background: OBSIDIAN, color: "#fff", letterSpacing: "0.14em" }}>ADD ENTRY</button>
+                  </div>
+                </form>
+              )}
               <MiniStats items={[
                 { label: "DUE", value: fmt(aDue) },
                 { label: "PAID", value: fmt(aPaid), positive: true },
@@ -583,7 +720,44 @@ export default function DashboardPage() {
               accent={MUTED_RED}
               open={openLiens}
               onToggle={() => setOpenLiens(!openLiens)}
-              chevron={chevron}>
+              chevron={chevron}
+              action={openLiens ? (
+                <button onClick={() => setShowAddLien(!showAddLien)}
+                  className="text-xs tracking-widest px-4 py-2 transition-all"
+                  style={{ background: showAddLien ? IVORY : OBSIDIAN, color: showAddLien ? MUTED_RED : "#fff", border: `1px solid ${showAddLien ? BORDER : OBSIDIAN}`, letterSpacing: "0.12em" }}>
+                  {showAddLien ? "CANCEL" : "+ ADD"}
+                </button>
+              ) : null}>
+              {showAddLien && (
+                <form onSubmit={handleAddLien}
+                  className="mb-6 p-6 grid grid-cols-2 md:grid-cols-3 gap-4"
+                  style={{ background: IVORY, border: `1px solid ${BORDER}` }}>
+                  {[
+                    { label: "Description", key: "description", type: "text",   placeholder: "e.g. Legal Obligation" },
+                    { label: "Amount",       key: "amount",      type: "number", placeholder: "0.00" },
+                    { label: "Category",     key: "category",    type: "text",   placeholder: "e.g. Lien" },
+                    { label: "Due Date",     key: "dueDate",     type: "date",   placeholder: "" },
+                  ].map(f => (
+                    <div key={f.key}>
+                      <label className="block text-xs mb-1.5" style={{ color: WARM_GRAY, letterSpacing: "0.12em" }}>{f.label.toUpperCase()}</label>
+                      <input type={f.type} value={(addLienForm as any)[f.key]} placeholder={f.placeholder}
+                        onChange={e => setAddLienForm({ ...addLienForm, [f.key]: e.target.value })}
+                        className={inp} style={inpStyle} />
+                    </div>
+                  ))}
+                  <div className="flex items-end">
+                    <label className="flex items-center gap-2 text-xs cursor-pointer" style={{ color: WARM_GRAY, letterSpacing: "0.08em" }}>
+                      <input type="checkbox" checked={addLienForm.isRecurring}
+                        onChange={e => setAddLienForm({ ...addLienForm, isRecurring: e.target.checked })} className="w-3.5 h-3.5" /> RECURRING
+                    </label>
+                  </div>
+                  <div className="col-span-2 md:col-span-3 flex items-center gap-4">
+                    {addLienError && <p className="text-xs" style={{ color: MUTED_RED }}>{addLienError}</p>}
+                    <button type="submit" className="px-6 py-2.5 text-xs tracking-widest"
+                      style={{ background: OBSIDIAN, color: "#fff", letterSpacing: "0.14em" }}>ADD ENTRY</button>
+                  </div>
+                </form>
+              )}
               <MiniStats items={[
                 { label: "TOTAL", value: fmt(lDue) },
                 { label: "PAID", value: fmt(lPaid), positive: true },
